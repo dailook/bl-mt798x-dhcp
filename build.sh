@@ -42,7 +42,7 @@ export CROSS_COMPILE="$TOOLCHAIN"
 ATF_CFG_SOURCE="${SOC}_${BOARD}_defconfig"
 UBOOT_CFG_SOURCE="${SOC}_${BOARD}_defconfig"
 
-# Backup the configuration files in sources
+# 为 sources的配置文件做备份
 ATF_CFG="${ATF_CFG:-$ATF_CFG_SOURCE}"
 UBOOT_CFG="${UBOOT_CFG:-$UBOOT_CFG_SOURCE}"
 
@@ -57,12 +57,6 @@ else
 	if [ "$multilayout" = "1" ]; then
 		UBOOT_CFG="${SOC}_${BOARD}_multi_layout_defconfig"
 	fi
-fi
-
-if [ "$multilayout" = "1" ] && [ ! -f "$UBOOT_DIR/configs/$UBOOT_CFG" ]; then
-	echo "Warning: $UBOOT_DIR/configs/$UBOOT_CFG not found, fallback to single-layout."
-	multilayout=0
-	UBOOT_CFG="${SOC}_${BOARD}_defconfig"
 fi
 
 for file in "$ATF_DIR/configs/$ATF_CFG" "$UBOOT_DIR/configs/$UBOOT_CFG"; do
@@ -111,7 +105,7 @@ if [ -f "$ATF_DIR/build/${SOC}/release/fip.bin" ]; then
 		FIP_NAME="${SOC}_${BOARD}_${VERSION}-fip"
 		# Append '-dhcpd' for different VERSION
 		if [ "$VERSION" = "2022" ] || [ "$VERSION" = "2023" ] || [ "$VERSION" = "2024" ] || [ "$VERSION" = "2025" ]; then
-			FIP_NAME="${FIP_NAME}-dhcpd-Yuzhii"
+			FIP_NAME="${FIP_NAME}-dhcpd-dailook"
 		fi
 	if [ "$fixedparts" = "1" ]; then
 		FIP_NAME="${FIP_NAME}-fixed-parts"
