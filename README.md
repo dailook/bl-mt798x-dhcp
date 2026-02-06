@@ -15,6 +15,11 @@
 ```bash
 sudo apt install gcc-aarch64-linux-gnu build-essential flex bison libssl-dev device-tree-compiler qemu-user-static
 ```
+## 克隆U-boot源码
+
+```bash
+git clone -b 2025 --single-branch --filter=blob:none https://github.com/dailook/bl-mt798x-dhcp
+```
 
 ## 本地编译命令示例
 
@@ -65,5 +70,7 @@ chmod +x show_gpt.sh
 脚本会解析 mt798x_gpt_bin 内所有 GPT 文件，并将分区信息输出到 output_gpt/gpt_info.txt。
 
 ## 更换U-boot背景图
-  
-替换路径"uboot-mtk-20250711/failsafe/fsdata/bg.jpg"的bg.jpg文件，文件大小控制在200kB大小内
+
+```bash
+替换路径"uboot-mtk-20250711/failsafe/fsdata/bg.jpg"的bg.jpg文件，文件大小控制在200kB大小以内
+```
