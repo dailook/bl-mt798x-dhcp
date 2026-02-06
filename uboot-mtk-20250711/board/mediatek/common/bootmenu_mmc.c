@@ -59,6 +59,12 @@ static const struct data_part_entry mmc_parts[] = {
 		.validate = generic_mmc_validate_fw,
 		.write = generic_mmc_write_fw,
 	},
+	{
+		.name = "Factory",
+		.abbr = "factory",
+		.env_name = "bootfile.factory",
+		.write = generic_mmc_write_factory,
+	},
 #ifdef CONFIG_MTK_DUAL_BOOT_EMERG_IMAGE_UPGRADE
 	{
 		.name = "Emergency firmware",

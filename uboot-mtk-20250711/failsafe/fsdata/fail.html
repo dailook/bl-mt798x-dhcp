@@ -1,16 +1,65 @@
 <!DOCTYPE HTML>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<title>Update failed</title>
-		<link rel="stylesheet" href="/style.css">
-		<script src="/main.js"></script>
-	</head>
-	<body onload="getversion()">
-		<div id="m">
-			<h1 class="red">UPDATE FAILED</h1>
-			<div class="i e"><strong>Something went wrong during update</strong>Probably you have chosen wrong file. Please, try again or contact with the author of this modification. You can also get more information during update in U-Boot console.</div>
+<html lang="zh">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>更新失败</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="main.js"></script>
+</head>
+
+<body onload="appInit('fail')" data-page="fail">
+	<div class="app">
+		<aside class="sidebar">
+			<ul class="sidebar-nav">
+				<li class="sidebar-nav-item">
+					<a href="/"><span class="ico">🧰</span>固件更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="bl2.html"><span class="ico">📦</span>BL2更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="uboot.html"><span class="ico">🔑</span>U-Boot更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="gpt.html"><span class="ico">💾</span>GPT更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="factory.html"><span class="ico">🏭</span>Factory更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="initramfs.html"><span class="ico">⚡</span>启动内存固件</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="env.html"><span class="ico">⚙️</span>环境变量</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="console.html"><span class="ico">💻</span>命令行</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="backup.html"><span class="ico">💾</span>备份</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="reboot.html"><span class="ico">🔄</span>重启</a>
+				</li>
+			</ul>
+		</aside>
+		<div class="main">
+			<div id="m">
+				<div class="card-head">
+					<h1 class="red">❌ 更新失败</h1>
+				</div>
+				<div class="card-foot">
+					<div class="i e">
+						<strong>更新过程中出现错误</strong><br>
+						可能选择了错误的文件。请重试或联系此修改的作者。您也可以在 U-Boot 控制台查看更多刷写过程信息。
+					</div>
+				</div>
+			</div>
+			<div id="version"></div>
 		</div>
-		<div id="version"></div>
-	</body>
+	</div>
+</body>
+
 </html>

@@ -11,6 +11,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/mt65xx.h>
 #include <dt-bindings/phy/phy.h>
+#include <dt-bindings/input/linux-event-codes.h>
 
 / {
 	compatible = "mediatek,mt7988-rfb";

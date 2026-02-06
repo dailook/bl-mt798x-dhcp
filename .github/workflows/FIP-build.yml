@@ -1,0 +1,593 @@
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
+name: FIP Build
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      MODEL:
+        description: 'Model selection'
+        required: true
+        default: 'cmcc_a10'
+        type: string
+      FIP_VERSION: 
+        description: 'FIP versions (comma-separated, e.g. 2022,2023,2024,2025/all)'
+        required: true
+        default: '2024'
+        type: string
+      REPO_URL:
+        description: 'Source repository'
+        required: true
+        default: 'https://github.com/Yuzhii0718/bl-mt798x-dhcpd'
+        type: string
+      REPO_BRANCH:
+        description: 'Repository branch'
+        required: true
+        default: 'master'
+        type: string
+      GPT_GEN:
+        description: 'Generate GPT table image'
+        required: false
+        default: false
+        type: boolean
+      GEN_BL2:
+        description: 'Generate BL2 binary(v22/23 ATF only)'
+        required: false
+        default: false
+        type: boolean
+      OC_BL2:
+        description: 'Build 1.6GHz BL2 by patch(Only mt7981)'
+        required: false
+        default: false
+        type: boolean
+      MULTI_LAYOUT:
+        description: 'Enable MULTI_LAYOUT(Only supported devices)'
+        required: false
+        default: false
+        type: boolean
+      CUSTOM_IP:
+        description: 'Custom default IP for DHCPD (e.g. 192.168.31.1)'
+        required: false
+        default: 'false'
+        type: string
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+      save_disk:
+        description: 'Free up disk space(build environment)'
+        required: false
+        default: 'false'
+#  schedule:
+#    - cron: 0 16 * * *
+
+env:
+  UPLOAD_TAG_NAME: ${{ github.event.inputs.MODEL }}
+  REPO_URL: ${{ github.event.inputs.REPO_URL }}
+  REPO_BRANCH: ${{ github.event.inputs.REPO_BRANCH }}
+  SSH_ACTIONS: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+  # ATF and U-Boot versions mapping/path
+  atf22: atf-20220606-637ba581b
+  uboot22: uboot-mtk-20220606
+  atf23: atf-20231013-0ea67d76a
+  uboot23: uboot-mtk-20230718-09eda825
+  atf24: atf-20240117-bacca82a8
+  uboot25: uboot-mtk-20250711
+  atf25: atf-20250711
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+          matrix:
+            os:
+              - ubuntu-22.04
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: 检查项目分支
+      uses: actions/checkout@master
+
+    - name: 清理磁盘空间(local1)
+      if: github.event.inputs.save_disk == 'true' && !cancelled()
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+
+    - name: 初始化编译环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/depends/${{ matrix.os }})
+        sudo -E apt-get -qq install rename
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: 清理磁盘空间(local2)
+      if: github.event.inputs.save_disk == 'true' && !cancelled()
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+
+    - name: 清理磁盘空间(plugin)
+      if: github.event.inputs.save_disk == 'true' && !cancelled()
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # when set to "true" but frees about 6 GB
+        tool-cache: true
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: false
+        dotnet: false
+        haskell: false
+        large-packages: false
+        swap-storage: false
+
+    - name: 下载源码
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH bl-mt798x-dhcpd
+        ln -sf /workdir/bl-mt798x-dhcpd $GITHUB_WORKSPACE/bl-mt798x-dhcpd
+
+    - name: SSH链接管理
+      uses: P3TERX/ssh2actions@v1.0.0
+      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
+      env:
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+    - name: 解析 FIP 版本输入
+      run: |
+        IFS=',' read -ra VERSIONS <<< "${{ github.event.inputs.FIP_VERSION }}"
+        echo "解析到的版本如下："
+        for version in "${VERSIONS[@]}"; do
+          echo "Processing version: $version"
+        done
+
+    - name: 解析机型列表
+      run: |
+        set -euo pipefail
+        cd bl-mt798x-dhcpd
+        mkdir -p model_lists
+
+        FIP_INPUT="${{ github.event.inputs.FIP_VERSION }}"
+        SOC_FILTER=""
+        if [[ "$FIP_INPUT" =~ ^(.+)-(mt798[0-9]+)$ ]]; then
+          FIP_INPUT="${BASH_REMATCH[1]}"
+          SOC_FILTER="${BASH_REMATCH[2]}"
+          echo "检测到平台限定：$SOC_FILTER（将仅生成该平台机型列表）"
+        fi
+
+        # 解析需要编译的版本列表
+        if [ "$FIP_INPUT" = "all" ]; then
+          SUPPORTED_VERSIONS=("2022" "2023" "2024" "2025")
+          echo "检测到 all，将解析：${SUPPORTED_VERSIONS[*]}"
+        else
+          IFS=',' read -ra SUPPORTED_VERSIONS <<< "$FIP_INPUT"
+          echo "将按选择解析：${SUPPORTED_VERSIONS[*]}"
+        fi
+
+        version_to_dirs() {
+          local v="$1"
+          case "$v" in
+            2022) echo "${{ env.atf22 }}" "${{ env.uboot22 }}" ;;
+            2023) echo "${{ env.atf23 }}" "${{ env.uboot23 }}" ;;
+            2024) echo "${{ env.atf24 }}" "${{ env.uboot23 }}" ;;
+            2025) echo "${{ env.atf25 }}" "${{ env.uboot25 }}" ;;
+            *) echo "" "" ;;
+          esac
+        }
+
+        collect_models() {
+          local atf_dir="$1"
+          local uboot_dir="$2"
+          local atf_list
+          local uboot_list
+          atf_list=$(mktemp)
+          uboot_list=$(mktemp)
+
+          if [ -d "$atf_dir/configs" ]; then
+            find -L "$atf_dir/configs" -maxdepth 1 -type f -name 'mt798*_defconfig' | while read -r f; do
+              base=$(basename "$f")
+              base_no_ext=$(echo "$base" | sed -E 's/_defconfig$//')
+              if [ -n "$base_no_ext" ]; then
+                echo "$base_no_ext" >> "$atf_list"
+              fi
+            done
+          fi
+
+          if [ -d "$uboot_dir/configs" ]; then
+            find -L "$uboot_dir/configs" -maxdepth 1 -type f -name 'mt798*_defconfig' | while read -r f; do
+              base=$(basename "$f")
+              base_no_ext=$(echo "$base" | sed -E 's/_defconfig$//')
+              if [ -n "$base_no_ext" ]; then
+                echo "$base_no_ext" >> "$uboot_list"
+              fi
+            done
+          fi
+
+          if [ -s "$atf_list" ] && [ -s "$uboot_list" ]; then
+            sort -u "$atf_list" > "${atf_list}.sorted"
+            sort -u "$uboot_list" > "${uboot_list}.sorted"
+            comm -12 "${atf_list}.sorted" "${uboot_list}.sorted"
+          fi
+
+          rm -f "$atf_list" "$uboot_list" "${atf_list}.sorted" "${uboot_list}.sorted"
+        }
+
+        for version in "${SUPPORTED_VERSIONS[@]}"; do
+          read -r ATF_DIR UBOOT_DIR < <(version_to_dirs "$version")
+          if [ -z "$ATF_DIR" ] || [ -z "$UBOOT_DIR" ]; then
+            echo "Unknown version mapping: $version, skip"
+            continue
+          fi
+          models=$(collect_models "$ATF_DIR" "$UBOOT_DIR" || true)
+          if [ -z "$models" ]; then
+            echo "未找到可用机型（$version）：缺少 ATF/UBoot defconfig 交集，跳过"
+            continue
+          fi
+          if [ -n "$SOC_FILTER" ]; then
+            models=$(echo "$models" | grep -E "^${SOC_FILTER}_" || true)
+            if [ -z "$models" ]; then
+              echo "平台 $SOC_FILTER 在 $version 版本无可用机型，跳过"
+              continue
+            fi
+          fi
+          list_file="model_lists/model_list_${version}.txt"
+          echo "$models" | sort -u > "$list_file"
+          echo "已生成机型列表：$list_file"
+        done
+
+        echo "MODEL_LIST_DIR=$PWD/model_lists" >> $GITHUB_ENV
+        echo "MODEL_LIST_READY=1" >> $GITHUB_ENV
+
+    - name: 应用特殊网段到 U-Boot DHCPD
+      if: github.event.inputs.CUSTOM_IP != 'false' && !cancelled()
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd bl-mt798x-dhcpd
+
+        CUSTOM_IP="${{ github.event.inputs.CUSTOM_IP }}"
+        if [ "$CUSTOM_IP" = "false" ] || [ -z "$CUSTOM_IP" ]; then
+          echo "未启用特殊网段（CUSTOM_IP=false 或未提供）"
+          exit 0
+        fi
+
+        # 简单 IPv4 校验（不校验每段的取值范围）
+        if ! echo "$CUSTOM_IP" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+          echo "非法的 CUSTOM_IP: $CUSTOM_IP"
+          exit 1
+        fi
+
+        echo "将调整 DHCPD 配置："
+        echo "  CONFIG_MTK_DHCPD_USE_CONFIG_IP 默认值改为 n"
+
+        count=0
+        for f in uboot-mtk-*/net/Kconfig; do
+          if [ -f "$f" ]; then
+            sed -i -E \
+              -e '/^config[[:space:]]+MTK_DHCPD_USE_CONFIG_IP$/,/^config[[:space:]]+/ s/^\tdefault[[:space:]]+y$/\tdefault n/' \
+              "$f"
+            echo "Patched: $f"
+            count=$((count+1))
+          fi
+        done
+
+        if [ "$count" -eq 0 ]; then
+          echo "Warning: 未找到 uboot-mtk-*/net/mtk_dhcpd.c 文件，跳过替换"
+        fi
+
+        echo "CUSTOM_NET=1" >> $GITHUB_ENV
+        echo "CUSTOM_NET_IP=${CUSTOM_IP}" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: ATF22/23 BL2 生成配置修正
+      if: github.event.inputs.GEN_BL2 == 'true' && !cancelled()
+      run: |
+        set -euo pipefail
+        cd bl-mt798x-dhcpd
+
+        MODEL="${{ github.event.inputs.MODEL }}"
+        DEFCONF="mt7981_${MODEL}_defconfig"
+
+        try_patch_defconfig() {
+          local path="$1"
+          if [ -f "$path" ]; then
+            if grep -q '^CONFIG_TARGET_FIP_NO_SEC_BOOT=y$' "$path"; then
+              sed -i 's/^CONFIG_TARGET_FIP_NO_SEC_BOOT=y$/CONFIG_TARGET_ALL_NO_SEC_BOOT=y/' "$path"
+              echo "Patched: $path"
+            else
+              echo "Skip (no target line): $path"
+            fi
+            return 0
+          fi
+          return 1
+        }
+
+        # 针对22、23 ATF版本修正defconfig
+        for atf_dir in "${{ env.atf22 }}" "${{ env.atf23 }}"; do
+          echo "Checking ATF dir: $atf_dir"
+          if try_patch_defconfig "${atf_dir}/configs/${DEFCONF}"; then
+            echo "Successfully patched defconfig file: ${atf_dir}/configs/${DEFCONF}"
+          else
+            echo "Warning: defconfig not found for $atf_dir (searched configs/, atf/configs/)"
+          fi
+        done
+        echo "status=success" >> $GITHUB_OUTPUT
+        echo "GEN_BL2=1" >> $GITHUB_ENV
+
+    - name: 应用 mt7981 BL2 超频补丁
+      if: github.event.inputs.OC_BL2 == 'true' && !cancelled()
+      run: |
+        cd bl-mt798x-dhcpd
+        git apply modify-patch/0001-overclocking-mt7981-to-1.6GHz-by-modify-atf.patch
+        echo "status=success" >> $GITHUB_OUTPUT
+        echo "OC_BL2=1" >> $GITHUB_ENV
+
+    - name: 编译 FIP
+      id: compile
+      run: |
+        cd bl-mt798x-dhcpd
+        chmod +x ./build.sh
+        mkdir -p output
+
+        # MULTI_LAYOUT 开关
+        if [ "${{ github.event.inputs.MULTI_LAYOUT }}" = "true" ]; then
+          echo "已启用 MULTI_LAYOUT=1"
+        else
+          echo "未启用 MULTI_LAYOUT"
+        fi
+        
+        FIP_INPUT="${{ github.event.inputs.FIP_VERSION }}"
+        SOC_FILTER=""
+        if [[ "$FIP_INPUT" =~ ^(.+)-(mt798[0-9]+)$ ]]; then
+          FIP_INPUT="${BASH_REMATCH[1]}"
+          SOC_FILTER="${BASH_REMATCH[2]}"
+          echo "检测到平台限定：$SOC_FILTER（将仅编译该平台机型）"
+        fi
+
+        # 解析需要编译的版本列表
+        if [ "$FIP_INPUT" = "all" ]; then
+          SUPPORTED_VERSIONS=("2022" "2023" "2024" "2025")
+          echo "检测到 all，将编译：${SUPPORTED_VERSIONS[*]}"
+        else
+          IFS=',' read -ra SUPPORTED_VERSIONS <<< "$FIP_INPUT"
+          echo "将按选择编译：${SUPPORTED_VERSIONS[*]}"
+        fi
+
+        MODEL_INPUT="${{ github.event.inputs.MODEL }}"
+        if [[ "$MODEL_INPUT" =~ ^all-(mt798[0-9]+)$ ]]; then
+          MODEL_INPUT="all"
+          if [ -z "$SOC_FILTER" ]; then
+            SOC_FILTER="${BASH_REMATCH[1]}"
+          fi
+          echo "检测到机型输入包含平台限定：$SOC_FILTER（MODEL=all-mt798x）"
+        fi
+
+        # 逐版本编译并缓存到各自临时目录
+        for version in "${SUPPORTED_VERSIONS[@]}"; do
+          echo "正在准备${version}版本FIP..."
+          list_file="model_lists/model_list_${version}.txt"
+          if [ ! -s "$list_file" ]; then
+            echo "未找到机型列表文件（$list_file），跳过 $version"
+            continue
+          fi
+          models=$(cat "$list_file" || true)
+          if [ -z "$models" ]; then
+            echo "机型列表为空（$version），跳过"
+            continue
+          fi
+          if [ -n "$SOC_FILTER" ]; then
+            models=$(echo "$models" | grep -E "^${SOC_FILTER}_" || true)
+            if [ -z "$models" ]; then
+              echo "平台 $SOC_FILTER 在 $version 版本无可用机型，跳过"
+              continue
+            fi
+          fi
+
+          echo "${version}版本可用机型："
+          echo "$models" | tr '\n' ' '
+          echo
+
+          # 选择需要编译的机型（models 格式：mt798x_model）
+          if [ "$MODEL_INPUT" = "all" ]; then
+            BUILD_MODELS="$models"
+          else
+            BUILD_MODELS=""
+            while read -r entry; do
+              [ -z "$entry" ] && continue
+              model_name="${entry#*_}"
+              if [ "$model_name" = "$MODEL_INPUT" ]; then
+                BUILD_MODELS+="$entry "
+              fi
+            done <<< "$models"
+            if [ -z "$BUILD_MODELS" ]; then
+              echo "机型 $MODEL_INPUT 在 $version 版本缺少 ATF/UBoot defconfig，跳过"
+              continue
+            fi
+          fi
+
+          for entry in $BUILD_MODELS; do
+            soc="${entry%%_*}"
+            model_name="${entry#*_}"
+            echo "正在编译${version}版本FIP（SOC：$soc，机型：$model_name）..."
+            if [ "${{ github.event.inputs.MULTI_LAYOUT }}" = "true" ]; then
+              SOC="$soc" BOARD="$model_name" VERSION=${version} MULTI_LAYOUT=1 ./build.sh 2>&1 | tee "output/build-${soc}-${model_name}-${version}.log"
+              build_rc=${PIPESTATUS[0]}
+            else
+              SOC="$soc" BOARD="$model_name" VERSION=${version} ./build.sh 2>&1 | tee "output/build-${soc}-${model_name}-${version}.log"
+              build_rc=${PIPESTATUS[0]}
+            fi
+            if [ "$build_rc" -ne 0 ]; then
+              echo "编译失败：soc=$soc model=$model_name version=$version (rc=$build_rc)，继续下一个"
+            fi
+          done
+
+          mkdir -p "temp_output_${version}"
+          if [ -d "output" ]; then
+            cp -r output/* "temp_output_${version}/" || true
+            rm -rf output/*
+          fi
+        done
+
+        # 合并所有版本的输出到 output 目录
+        mkdir -p output
+        for version in "${SUPPORTED_VERSIONS[@]}"; do
+          cp -r "temp_output_${version}/"* output/ || true
+        done
+
+        # 清理临时目录
+        for version in "${SUPPORTED_VERSIONS[@]}"; do
+          rm -rf "temp_output_${version}"
+        done
+        
+        echo "FILE_DATE=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+    
+    - name: 编译 GPT
+      if: github.event.inputs.GPT_GEN == 'true' && !cancelled()
+      run: |
+        cd bl-mt798x-dhcpd
+        chmod +x ./generate_gpt.sh
+        ./generate_gpt.sh
+        echo "status=success" >> $GITHUB_OUTPUT
+        echo "GPT=1" >> $GITHUB_ENV
+
+    - name: 查看磁盘使用情况
+      if: (!cancelled())
+      run: df -hT
+
+    - name: 整理文件并重命名
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: | 
+        cd bl-mt798x-dhcpd
+        # 获取当前时间戳
+        TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+        # 重命名 OC_BL2
+        if [ "${{ env.OC_BL2 }}" = "1" ]; then
+          for file in output/*; do
+            if [[ "$file" == *"mt7981"* && "$file" == *"bl2.bin"* ]]; then
+              mv "$file" "${file%.bin}_oc1.6GHz.bin"
+            fi
+          done
+        fi
+        # 标注特殊网段（先追加 _customnet 后缀，再追加时间戳）
+        if [ "${{ env.CUSTOM_NET }}" = "1" ]; then
+          for dir in output output_gpt; do
+            if [ -d "$dir" ]; then
+              for file in "$dir"/*; do
+                [ -f "$file" ] || continue
+                mv "$file" "${file%.*}_customnet.${file##*.}"
+              done
+            fi
+          done
+        fi
+        # 重命名 output 目录下的文件
+        if [ -d "output" ]; then
+          rename "s/(.*)\.(.*)/\$1_${TIMESTAMP}.\$2/" output/*
+        fi
+        # 重命名 output_gpt 目录下的文件
+        if [ -d "output_gpt" ]; then
+          rename "s/(.*)\.(.*)/\$1_${TIMESTAMP}.\$2/" output_gpt/*
+        fi
+        # 移动文件到指定目录（包含二进制、日志、GPT、机型列表）
+        mkdir -p upload
+        if [ -d "output" ]; then
+          cp -r output/* upload/ || true
+        fi
+        if [ -d "output_gpt" ]; then
+          cp -r output_gpt/* upload/ || true
+        fi
+        if [ -d "model_lists" ]; then
+          cp -r model_lists/* upload/ || true
+        fi
+        # 如果存在编译日志（output/build-*.log），确保被包含
+        if ls output/build-*.log >/dev/null 2>&1; then
+          cp -f output/build-*.log upload/ || true
+        fi
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 打包上传固件到Actions Artifacts
+      uses: actions/upload-artifact@main
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: ${{ env.FILE_DATE }}-${{ env.UPLOAD_TAG_NAME }}
+        path: |
+          bl-mt798x-dhcpd/upload/*
+
+    - name: 生成固件Release标签
+      id: tag
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      run: |
+        touch release.txt
+        echo "- 适配机型：${{ env.UPLOAD_TAG_NAME }}" >> release.txt
+        echo "- 使用源码：${{ env.REPO_URL }}" >> release.txt
+        echo "- 使用分支：${{ env.REPO_BRANCH }}" >> release.txt
+        echo "- 使用版本：${{ github.event.inputs.FIP_VERSION }}" >> release.txt
+        if [ "${{ github.event.inputs.MULTI_LAYOUT }}" = "true" ]; then
+          echo "- 已启用 MULTI_LAYOUT=1" >> release.txt
+        else
+          echo "- 未启用 MULTI_LAYOUT" >> release.txt
+        fi
+        if [ "${{ github.event.inputs.GEN_BL2 }}" = "true" ]; then
+          echo "- 已开启 ATF22/23 BL2 生成" >> release.txt
+        else
+          echo "- 未开启 ATF22/23 BL2 生成" >> release.txt
+        fi
+        if [ "${{ github.event.inputs.OC_BL2 }}" = "true" ]; then
+          echo "- 已应用1.6GHz BL2超频补丁" >> release.txt
+        else
+          echo "- 未应用1.6GHz BL2超频补丁" >> release.txt
+        fi
+        CUSTOM_IP="${{ github.event.inputs.CUSTOM_IP }}"
+        if [ "$CUSTOM_IP" != "false" ] && [ -n "$CUSTOM_IP" ]; then
+          if echo "$CUSTOM_IP"; then
+            echo "- 已应用特殊网段：$CUSTOM_IP" >> release.txt
+          else
+            echo "- 特殊网段输入无效（CUSTOM_IP=$CUSTOM_IP），已保持默认网段192.168.1.1" >> release.txt
+          fi
+        else
+          echo "- 保持默认网段192.168.1.1" >> release.txt
+        fi
+        if [ "${{ github.event.inputs.GPT_GEN }}" = "true" ]; then
+          echo "- 已生成GPT分区表镜像" >> release.txt
+        else
+          echo "- 未生成GPT分区表镜像" >> release.txt
+        fi
+        if [ "${{ github.event.inputs.MODEL }}" = "all" ]; then
+          echo "- 已输出各版本机型列表文件（MODEL=all）" >> release.txt
+        fi
+        echo "- 编译时间：${{ env.FILE_DATE }}" >> release.txt
+        echo "release_tag=${{ env.FILE_DATE }}-${{ env.UPLOAD_TAG_NAME }}" >> $GITHUB_OUTPUT
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 发布固件至Release
+      uses: softprops/action-gh-release@v2.1.0
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        files: bl-mt798x-dhcpd/upload/*
+        release_name: ${{ env.FILE_DATE }}-${{ env.UPLOAD_TAG_NAME }}
+        name: ${{ env.FILE_DATE }}-${{ env.UPLOAD_TAG_NAME }}
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt

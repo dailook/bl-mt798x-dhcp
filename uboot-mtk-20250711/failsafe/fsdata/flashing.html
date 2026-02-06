@@ -1,39 +1,83 @@
 <!DOCTYPE HTML>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<title>Update in progress</title>
-		<link rel="stylesheet" href="/style.css">
-		<script src="/main.js"></script>
-		<script>
-			function init() {
-				getversion();
+<html lang="zh">
 
-				ajax({
-					url: '/result',
-					done: function(response) {
-						if (response == 'failed') {
-							location = '/fail.html'
-							return
-						}
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>正在更新</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="main.js"></script>
+	<script>
+		function init() {
+			appInit('flashing');
 
-						document.getElementById('title').innerHTML = 'UPDATE COMPLETED'
-						document.getElementById('info').innerHTML = 'Your device was successfully updated! Now rebooting...'
-					},
-					timeout: 1800000
-				})
-			}
-		</script>
-	</head>
-	<body onload="init()">
-		<div id="m">
-			<h1 id="title">UPDATE IN PROGRESS</h1>
-			<p id="info">
-				Your file was successfully uploaded! Update is in progress and you should wait for automatic reset of the device.<br>
-				Update time depends on image size and may take up to a few minutes.
-			</p>
-			<div id="l"></div>
+			ajax({
+				url: '/result',
+				done: function (response) {
+					if (response == 'failed') {
+						location = 'fail.html'
+						return
+					}
+
+					document.getElementById('title').innerHTML = '✅ 更新完成'
+					document.getElementById('info').innerHTML = '设备已成功更新！正在重启...'
+				},
+				timeout: 1800000
+			})
+		}
+	</script>
+</head>
+
+<body onload="init()" data-page="flashing">
+	<div class="app">
+		<aside class="sidebar">
+			<ul class="sidebar-nav">
+				<li class="sidebar-nav-item active">
+					<a href="/"><span class="ico">🧰</span>固件更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="bl2.html"><span class="ico">📦</span>BL2更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="uboot.html"><span class="ico">🔑</span>U-Boot更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="gpt.html"><span class="ico">💾</span>GPT更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="factory.html"><span class="ico">🏭</span>Factory更新</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="initramfs.html"><span class="ico">⚡</span>启动内存固件</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="env.html"><span class="ico">⚙️</span>环境变量</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="console.html"><span class="ico">💻</span>命令行</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="backup.html"><span class="ico">💾</span>备份</a>
+				</li>
+				<li class="sidebar-nav-item">
+					<a href="reboot.html"><span class="ico">🔄</span>重启</a>
+				</li>
+			</ul>
+		</aside>
+		<div class="main">
+			<div id="m">
+				<div class="card-main" style="text-align: center; padding-top: 100px;">
+					<h1 id="title">🔄 正在更新...</h1>
+					<p id="info">
+						文件上传成功！正在执行更新，请等待设备自动重启。<br>
+						更新时间取决于镜像大小，可能需要几分钟。
+					</p>
+					<div id="l"></div>
+				</div>
+			</div>
+			<div id="version"></div>
 		</div>
-        <div id="version"></div>
-	</body>
+	</div>
+</body>
+
 </html>

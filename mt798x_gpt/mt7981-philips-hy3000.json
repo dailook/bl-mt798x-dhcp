@@ -1,0 +1,68 @@
+{
+	"gpt": {
+		"start": 0,
+		"end": 33,
+		"part_type_guid": "0fc63daf-8483-4772-8e79-3d69d8477de4",
+		"unique_part_guid": "5733c4d0-b7aa-11ef-a3ee-000c2932e3ca"
+	},
+	"u-boot-env": {
+		"start": 8192,
+		"end": 9215,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{5733c4d1-b7aa-11ef-a3ee-000c2932e3ca}"
+	},
+	"factory": {
+		"start": 9216,
+		"end": 13311,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{5733c4d2-b7aa-11ef-a3ee-000c2932e3ca}"
+	},
+	"fip": {
+		"start": 13312,
+		"end": 17407,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{5733c4d3-b7aa-11ef-a3ee-000c2932e3ca}"
+	},
+	"kernel": {
+		"start": 17408,
+		"end": 82943,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{5733c4d4-b7aa-11ef-a3ee-000c2932e3ca}"
+	},
+	"rootfs": {
+		"start": 82944,
+		"end": 1106944,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{5733c4d5-b7aa-11ef-a3ee-000c2932e3ca}"
+	},
+	"unknown0": {
+		"start": 1107968,
+		"end": 1128447,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{9fd257f8-0117-af43-9f02-b4770a49e5e3}"
+	},
+	"unknown1": {
+		"start": 1128448,
+		"end": 9517055,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{130dfd04-5920-6b4b-b0e3-a78c960b7841}"
+	},
+	"unknown2": {
+		"start": 9517056,
+		"end": 240203775,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{c98cf674-38a9-a14d-889a-9382f7582c01}"
+	},
+	"unknown3": {
+		"start": 240203776,
+		"end": 240224255,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{4a40d997-934b-3c41-b0b3-12d0bcbb295b}"
+	},
+	"unknown4": {
+		"start": 240224256,
+		"end": 244252638,
+		"part_type_guid": "{0fc63daf-8483-4772-8e79-3d69d8477de4}",
+		"unique_part_guid": "{8408b35c-f436-5e4b-af78-69548e8152d4}"
+	}
+}

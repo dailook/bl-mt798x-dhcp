@@ -13,6 +13,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/regulator/richtek,rt5190a-regulator.h>
+#include <dt-bindings/input/linux-event-codes.h>
 
 / {
 	compatible = "mediatek,mt7987";

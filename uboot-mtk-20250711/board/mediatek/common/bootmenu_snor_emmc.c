@@ -9,6 +9,23 @@
 #include "autoboot_helper.h"
 #include "mmc_helper.h"
 
+#include <errno.h>
+
+static int write_factory(void *priv, const struct data_part_entry *dpe,
+			 const void *data, size_t size)
+{
+	int ret;
+
+	ret = write_mtd_part("factory", data, size, true);
+	if (!ret)
+		return 0;
+
+	if (ret != -ENODEV)
+		return ret;
+
+	return write_mmc_part("factory", data, size, true);
+}
+
 static const struct data_part_entry snor_emmc_parts[] = {
 	{
 		.name = "ATF BL2",
@@ -64,6 +81,12 @@ static const struct data_part_entry snor_emmc_parts[] = {
 		.post_action = UPGRADE_ACTION_BOOT,
 		.validate = generic_mmc_validate_fw,
 		.write = generic_mmc_write_fw,
+	},
+	{
+		.name = "Factory",
+		.abbr = "factory",
+		.env_name = "bootfile.factory",
+		.write = write_factory,
 	},
 	{
 		.name = "Single image (SPI-NOR)",

@@ -280,7 +280,18 @@ u32 http_make_response_header(struct http_response_info *info, char *buff,
 	if (p >= buff + size)
 		return size;
 
-	p += snprintf(p, buff + size - p, "Cache-Control: no-store\r\n");
+	p += snprintf(p, buff + size - p,
+		"Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n");
+
+	if (p >= buff + size)
+		return size;
+
+	p += snprintf(p, buff + size - p, "Pragma: no-cache\r\n");
+
+	if (p >= buff + size)
+		return size;
+
+	p += snprintf(p, buff + size - p, "Expires: 0\r\n");
 
 	if (p >= buff + size)
 		return size;

@@ -233,6 +233,46 @@ config MTK_HTTPD
 	help
 	  Enable mediatek httpd framework that allows some customized features.
 
+config MTK_DHCPD
+	bool "Minimal DHCP server for MediaTek web failsafe"
+	default y
+	depends on MTK_HTTPD
+	help
+	  Enable a minimal DHCPv4 server that answers DHCPDISCOVER/DHCPREQUEST
+	  while the MediaTek web failsafe UI (httpd) is running.
+
+config MTK_DHCPD_USE_CONFIG_IP
+	bool "Use CONFIG_IPADDR/CONFIG_NETMASK and configurable pool"
+	default y
+	depends on MTK_DHCPD
+	help
+	  Use CONFIG_IPADDR and CONFIG_NETMASK as DHCP server address/netmask.
+	  Pool start host and size are taken from the options below.
+	  If disabled, fallback defaults will be used.
+
+config MTK_DHCPD_POOL_START_HOST
+	int "DHCP pool start host address"
+	default 100
+	depends on MTK_DHCPD_USE_CONFIG_IP
+	help
+	  Host part for pool start. For example, 100 -> x.x.x.100.
+
+config MTK_DHCPD_POOL_SIZE
+	int "DHCP pool size"
+	default 101
+	depends on MTK_DHCPD_USE_CONFIG_IP
+	help
+	  Pool size, e.g. 101 means .100 ~ .200.
+
+config MTK_DHCPD_ENHANCED
+	bool "Enhanced DHCP server behavior"
+	default y
+	depends on MTK_DHCPD
+	help
+	  Enable enhanced DHCPREQUEST validation and stable IP allocation.
+	  Adds Server Identifier checks, DHCPNAK support, and hash-based pool
+	  allocation with collision avoidance.
+
 config NET_FORCE_IPADDR
 	bool "Use ipaddr and netmask with CONFIG_IPADDR and CONFIG_NETMASK"
 	default n

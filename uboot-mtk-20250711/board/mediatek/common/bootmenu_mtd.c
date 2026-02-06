@@ -54,6 +54,12 @@ static const struct data_part_entry mtd_parts[] = {
 		.write = generic_mtd_write_fw,
 	},
 	{
+		.name = "Factory",
+		.abbr = "factory",
+		.env_name = "bootfile.factory",
+		.write = generic_mtd_write_factory,
+	},
+	{
 		.name = "Single image",
 		.abbr = "simg",
 		.env_name = "bootfile.simg",

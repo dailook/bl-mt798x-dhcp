@@ -81,6 +81,7 @@ dual_image_mode=0
 new_ubi_image="new_ubi.bin"
 part_type="default"
 yq="yq_linux_amd64"
+ubi_enbable=0
 
 while [ "$1" != "" ]; do
 	case $1 in
@@ -126,7 +127,25 @@ while [ "$1" != "" ]; do
 		shift
 		rf_image=$1
 		;;
-	-i | --dual_image)
+	-u )
+		ubi_enbable=1
+		;;
+	-uk )
+		shift
+		kernel_image=$1
+		ubi_enbable=1
+		;;
+	-ur )
+		shift
+		rootfs_image=$1
+		ubi_enbable=1
+		;;
+	-uo )
+		shift
+		single_image=$1
+		ubi_enbable=1
+		;;
+	-i | --dual_image | --dual-image)
 		dual_image_mode=1
 		part_type="dual-image"
 		;;
@@ -269,15 +288,41 @@ extract_sdmmc_kernel() {
 recreate_ubimage() {
 	ubinize_config="ubi_temp.cfg"
 
+	# kernel_image 可能是绝对路径（由外层脚本传入）。
+	# 但 ws_folder 下的提取目录不能包含 '/'，否则会变成 ./tmp//home/... 并导致后续 sed 找不到文件。
+	# 这里统一用 basename 作为提取目录名。
+	local kernel_image_base
+	kernel_image_base=$(basename "${kernel_image}")
+	local extracted_dir
+	extracted_dir="${ws_folder}/${kernel_image_base}"
+
 	ubireader_extract_images -v ${kernel_image} -o ${ws_folder}/ > /dev/null 2>&1
 	# Remove tail 0xff paddings
-	sed -i '$ s/\xff*$//' ${ws_folder}/${kernel_image}/*kernel.ubifs
-	sed -i '$ s/\xff*$//' ${ws_folder}/${kernel_image}/*rootfs.ubifs
+	# 兼容不同版本 ubireader 的输出目录名：优先使用脚本约定的 extracted_dir，不存在则回退为 ws_folder 下的第一个子目录
+	if ! [[ -d "${extracted_dir}" ]]; then
+		extracted_dir=$(find "${ws_folder}" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+	fi
+
+	if [[ -d "${extracted_dir}" ]]; then
+		sed -i '$ s/\xff*$//' "${extracted_dir}"/*kernel.ubifs 2>/dev/null
+		sed -i '$ s/\xff*$//' "${extracted_dir}"/*rootfs.ubifs 2>/dev/null
+	fi
 
 	peb_size=`ubireader_display_info ${kernel_image} | grep "PEB Size: " | awk '{print $3}'`
 	min_io_size=`ubireader_display_info ${kernel_image} | grep "Min I/O: " | awk '{print $3}'`
 	ec=`ubireader_display_info ${kernel_image} | grep "Unknown Block Count: " | awk '{print $4}'`
 	ubi_volumes=($(${yq} .${platform}.${part_type}.ubi ${partition_config} | ${yq} 'keys' - | sed 's/^- //'))
+
+	# 从分区配置读取每个 UBI volume 的期望大小（可选）
+	# 注意：yq 可能返回 "null"，需要做保护；同时支持 0x... 十六进制写法。
+	kernel_vol_size_hex=$(${yq} .${platform}.${part_type}.ubi.kernel.size ${partition_config})
+	if [ "${kernel_vol_size_hex}" != "null" ]; then
+		kernel_vol_size_dec=$((kernel_vol_size_hex))
+	fi
+	kernel2_vol_size_hex=$(${yq} .${platform}.${part_type}.ubi.kernel2.size ${partition_config})
+	if [ "${kernel2_vol_size_hex}" != "null" ]; then
+		kernel2_vol_size_dec=$((kernel2_vol_size_hex))
+	fi
 	rootfs_size=($(${yq} .${platform}.${part_type}.ubi.rootfs.size ${partition_config}))
 	rootfs_size_dec=$((rootfs_size))
 	rootfs_data_size=($(${yq} .${platform}.${part_type}.ubi.rootfs_data.size ${partition_config}))
@@ -297,10 +342,16 @@ vol_type=dynamic
 vol_name=${volume_name}
 EOF
 		if [[ ${volume_name} == "kernel" ]] || [[ ${volume_name} == "kernel2" ]]; then
-			kernel_file=(${ws_folder}/${kernel_image}/*kernel.ubifs)
+			kernel_file=("${extracted_dir}"/*kernel.ubifs)
 			echo "image=${kernel_file}" >> ${ubinize_config}
+			# 如果分区配置给了卷大小，则显式指定，避免 ubinize 采用“最小可容纳”推断
+			if [[ ${volume_name} == "kernel" ]] && [[ -n "${kernel_vol_size_dec}" ]]; then
+				echo "vol_size=${kernel_vol_size_dec}" >> ${ubinize_config}
+			elif [[ ${volume_name} == "kernel2" ]] && [[ -n "${kernel2_vol_size_dec}" ]]; then
+				echo "vol_size=${kernel2_vol_size_dec}" >> ${ubinize_config}
+			fi
 		elif [[ ${volume_name} == "rootfs" ]] || [[ ${volume_name} == "rootfs2" ]]; then
-			rootfs_file=(${ws_folder}/${kernel_image}/*rootfs.ubifs)
+			rootfs_file=("${extracted_dir}"/*rootfs.ubifs)
 			echo "image=${rootfs_file}" >> ${ubinize_config}
 			echo "vol_size=${rootfs_size_dec}" >> ${ubinize_config}
 		elif [[ ${volume_name} == "rootfs_data" ]]; then

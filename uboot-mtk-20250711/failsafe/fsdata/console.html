@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<html lang="zh">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>命令行</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="main.js"></script>
+</head>
+<body onload="appInit('console')" data-page="console">
+	<div class="app">
+		<aside class="sidebar">
+			<ul class="sidebar-nav">
+				<li class="sidebar-nav-item"><a href="/"><span class="ico">🧰</span>固件更新</a></li>
+				<li class="sidebar-nav-item"><a href="bl2.html"><span class="ico">📦</span>BL2更新</a></li>
+				<li class="sidebar-nav-item"><a href="uboot.html"><span class="ico">🔑</span>U-Boot更新</a></li>
+				<li class="sidebar-nav-item"><a href="gpt.html"><span class="ico">💾</span>GPT更新</a></li>
+				<li class="sidebar-nav-item"><a href="factory.html"><span class="ico">🏭</span>Factory更新</a></li>
+				<li class="sidebar-nav-item"><a href="initramfs.html"><span class="ico">⚡</span>启动内存固件</a></li>
+				<li class="sidebar-nav-item"><a href="env.html"><span class="ico">⚙️</span>环境变量</a></li>
+				<li class="sidebar-nav-item active"><a href="console.html"><span class="ico">💻</span>命令行</a></li>
+				<li class="sidebar-nav-item"><a href="backup.html"><span class="ico">💾</span>备份</a></li>
+				<li class="sidebar-nav-item"><a href="reboot.html"><span class="ico">🔄</span>重启</a></li>
+			</ul>
+		</aside>
+		<div class="main">
+			<div id="m">
+				<div class="card-head">
+					<h1>💻 U-Boot 命令行</h1>
+					<p id="hint">在浏览器中直接执行 <strong>U-Boot 命令</strong>。<br>输出通过轮询获取（非 WebSocket），相当于 <strong>root 权限</strong>。</p>
+				</div>
+				<div class="card-main">
+					<div class="console-card">
+						<div id="console_out" class="console-output"></div>
+						<div class="console-toolbar">
+							<input id="console_token" class="console-token" type="password" autocomplete="off" placeholder="令牌（可选）">
+							<button type="button" class="button" onclick="consoleClear()">清空</button>
+						</div>
+						<div class="console-input-row">
+							<input id="console_cmd" class="console-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="help; printenv; mtd list">
+							<button type="button" class="button" onclick="consoleSend()">发送</button>
+						</div>
+						<div id="console_status" class="console-status"></div>
+					</div>
+				</div>
+				<div class="card-foot">
+					<div class="i w">
+						<strong>⚠️ 注意事项：</strong>
+						<ul>
+							<li>该终端可执行任意 U-Boot 命令</li>
+							<li>请勿在不受信任的网络中暴露此页面</li>
+							<li>如果设置了 failsafe_console_token，请在上方输入以解锁</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+			<div id="version"></div>
+		</div>
+	</div>
+</body>
+</html>

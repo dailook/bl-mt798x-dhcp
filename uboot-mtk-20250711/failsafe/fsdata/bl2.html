@@ -1,41 +1,60 @@
 <!DOCTYPE HTML>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<title>BL2 update</title>
-		<link rel="stylesheet" href="/style.css">
-		<script src="/main.js"></script>
-	</head>
-	<body onload="getversion()">
-		<div id="m">
-			<h1>BL2 UPDATE</h1>
-			<p id="hint">
-				You are going to update <strong>BL2 (preloader)</strong> on the device.<br>
-				Please, choose file from your local hard drive and click <strong>Upload</strong> button.
-			</p>
-			<form id="form">
-				<input id="file" type="file" name="bl2">
-				<input type="button" value="Upload" onclick="upload('bl2')">
-			</form>
-			<div>
-				<div class="bar" id="bar" style="display: none; --percent: 0;"></div>
+<html lang="zh">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>BL2更新</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="main.js"></script>
+</head>
+<body onload="appInit('bl2')" data-page="bl2">
+	<div class="app">
+		<aside class="sidebar">
+			<ul class="sidebar-nav">
+				<li class="sidebar-nav-item"><a href="/"><span class="ico">🧰</span>固件更新</a></li>
+				<li class="sidebar-nav-item active"><a href="bl2.html"><span class="ico">📦</span>BL2更新</a></li>
+				<li class="sidebar-nav-item"><a href="uboot.html"><span class="ico">🔑</span>U-Boot更新</a></li>
+				<li class="sidebar-nav-item"><a href="gpt.html"><span class="ico">💾</span>GPT更新</a></li>
+				<li class="sidebar-nav-item"><a href="factory.html"><span class="ico">🏭</span>Factory更新</a></li>
+				<li class="sidebar-nav-item"><a href="initramfs.html"><span class="ico">⚡</span>启动内存固件</a></li>
+				<li class="sidebar-nav-item"><a href="env.html"><span class="ico">⚙️</span>环境变量</a></li>
+				<li class="sidebar-nav-item"><a href="console.html"><span class="ico">💻</span>命令行</a></li>
+				<li class="sidebar-nav-item"><a href="backup.html"><span class="ico">💾</span>备份</a></li>
+				<li class="sidebar-nav-item"><a href="reboot.html"><span class="ico">🔄</span>重启</a></li>
+			</ul>
+		</aside>
+		<div class="main">
+			<div id="m">
+				<div class="card-head">
+					<h1>📦 BL2 更新</h1>
+					<p id="hint">您将要更新设备上的 <strong>BL2（预加载器）</strong>。<br>请从本地硬盘中选择文件，然后点击 <strong>上传</strong> 按钮。</p>
+				</div>
+				<div class="card-main">
+					<form id="form">
+						<input id="file" type="file" name="bl2">
+						<input type="button" value="📤 上传" onclick="upload('bl2')">
+					</form>
+					<div class="bar" id="bar" style="display:none; --percent:0;"></div>
+					<div id="size" style="display: none;">Size: xxxx</div>
+					<div id="md5" style="display: none;">MD5: xxxx</div>
+					<div id="upgrade" style="display:none;">
+						<p>✅ 如果以上信息确认无误，请点击"更新"。</p>
+						<button class="button" onclick="location='flashing.html'">🔄 更新</button>
+					</div>
+				</div>
+				<div class="card-foot">
+					<div class="i w">
+						<strong>⚠️ 注意事项：</strong>
+						<ul>
+							<li>更新期间不要关闭设备电源</li>
+							<li>如果一切顺利，设备将重新启动</li>
+							<li>请确保上传正确的 BL2 镜像，否则可能导致设备变砖！</li>
+						</ul>
+					</div>
+				</div>
 			</div>
-			<div id="size" style="display: none;">Size: xxxx</div>
-			<div id="md5" style="display: none;">MD5: xxxx</div>
-			<div id="upgrade" style="display: none;">
-				<p>If all information above is correct, click "Update".</p>
-				<button class="button" onclick="location = '/flashing.html'">Update</button>
-			</div>
-			<div class="i w">
-				<strong>WARNINGS</strong>
-				<ul>
-					<li>do not power off the device during update</li>
-					<li>if everything goes well, the device will restart</li>
-					<li>you can upload whatever you want, so be sure that you choose proper BL2 image for your device</li>
-					<li>updating BL2 is a very dangerous operation and may damage your device!</li>
-				</ul>
-			</div>
+			<div id="version"></div>
 		</div>
-        <div id="version"></div>
-	</body>
+	</div>
+</body>
 </html>

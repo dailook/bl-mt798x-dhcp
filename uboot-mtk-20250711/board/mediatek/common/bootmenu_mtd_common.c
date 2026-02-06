@@ -7,6 +7,7 @@
 
 #include <mtd.h>
 #include <ubi_uboot.h>
+#include <linux/string.h>
 
 #include "bootmenu_common.h"
 #include "colored_print.h"
@@ -18,9 +19,24 @@
 
 #define BL2_REDUND_BLOCKS		2
 
+static const char *alt_partname_factory(const char *partname)
+{
+	if (!partname)
+		return NULL;
+
+	if (!strcmp(partname, "factory"))
+		return "Factory";
+
+	if (!strcmp(partname, "Factory"))
+		return "factory";
+
+	return NULL;
+}
+
 struct mtd_info *get_mtd_part(const char *partname)
 {
 	struct mtd_info *mtd;
+	const char *alt;
 
 	gen_mtd_probe_devices();
 
@@ -29,9 +45,21 @@ struct mtd_info *get_mtd_part(const char *partname)
 	else
 		mtd = get_mtd_device(NULL, 0);
 
+	if (IS_ERR(mtd) && partname && PTR_ERR(mtd) == -ENODEV) {
+		alt = alt_partname_factory(partname);
+		if (alt)
+			mtd = get_mtd_device_nm(alt);
+	}
+
 	if (IS_ERR(mtd)) {
-		cprintln(ERROR, "*** MTD partition '%s' not found! ***",
-			 partname);
+		alt = alt_partname_factory(partname);
+		if (alt)
+			cprintln(ERROR,
+				"*** MTD partition '%s' (or '%s') not found! ***",
+				partname, alt);
+		else
+			cprintln(ERROR, "*** MTD partition '%s' not found! ***",
+				partname);
 	}
 
 	return mtd;
@@ -448,6 +476,12 @@ int generic_mtd_write_simg(void *priv, const struct data_part_entry *dpe,
 	put_mtd_device(mtd);
 
 	return ret;
+}
+
+int generic_mtd_write_factory(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size)
+{
+	return write_mtd_part("factory", data, size, true);
 }
 
 int generic_mtd_validate_fw(void *priv, const struct data_part_entry *dpe,

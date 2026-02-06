@@ -9,3 +9,55 @@ config WEBUI_FAILSAFE
 	default n
 	help
 	  Enable Web based failsafe UI
+
+choice
+	prompt "Failsafe Web UI style"
+	default WEBUI_FAILSAFE_UI_NEW
+	depends on WEBUI_FAILSAFE
+	help
+	  Select which UI resources to embed for failsafe Web UI.
+
+config WEBUI_FAILSAFE_UI_NEW
+	bool "New UI (fsdata)"
+
+config WEBUI_FAILSAFE_UI_OLD
+	bool "Old UI (fsdata_old)"
+
+endchoice
+
+config WEBUI_FAILSAFE_FACTORY
+	bool "Enable Factory upgrade"
+	default y
+	depends on WEBUI_FAILSAFE
+	help
+	  Enable Factory partition upgrade in the failsafe Web UI.
+	  This is an advanced feature and should be used with care.
+
+config WEBUI_FAILSAFE_BACKUP
+	bool "Enable backup download"
+	default y
+	depends on WEBUI_FAILSAFE
+	help
+	  Enable backup download functionality in the failsafe Web UI.
+
+config WEBUI_FAILSAFE_ENV
+	bool "Enable U-Boot environment management"
+	default y
+	depends on WEBUI_FAILSAFE
+	help
+	  Enable environment variable management (list/add/delete/reset/restore)
+	  in the failsafe Web UI.
+
+config WEBUI_FAILSAFE_CONSOLE
+	bool "Enable failsafe Web console (DANGEROUS)"
+	select CONSOLE_RECORD
+	default y
+	help
+	  Enable a simple web console (web terminal) in the failsafe Web UI.
+	  This allows running U-Boot commands from a browser without TTL.
+
+	  WARNING: This is effectively remote code execution (RCE) over the network.
+	  Do NOT enable on untrusted networks.
+
+	  Optional hardening:
+	  - Set env var 'failsafe_console_token' to require a token in requests.

@@ -1,58 +1,69 @@
-# ATF and u-boot for mt798x
+# 适用于 MT798x 的 ATF 与 U-Boot（带 DHCPD）U-boot-2025版本
 
-## About bl-mt798x
-- https://cmi.hanwckf.top/p/mt798x-uboot-usage
+基于 hanwckf 的 MT798x U-Boot，由 Yuzhii 二次开发，支持 DHCPD，WEB UI由dailook再次修改
 
-![](/u-boot.gif)
+警告：刷写自定义引导加载程序可能导致设备变砖，风险自负，请谨慎操作。
 
-## Prepare
+## 关于 bl-mt798x
 
-```
+- <https://cmi.hanwckf.top/p/mt798x-uboot-usage>
+
+[U-boot-2025版本]
+
+## 准备环境
+
+```bash
 sudo apt install gcc-aarch64-linux-gnu build-essential flex bison libssl-dev device-tree-compiler qemu-user-static
 ```
 
-## Build
+## 本地编译命令示例
+
+```bash
+chmod +x build.sh
+SOC=mt7981 BOARD=sn_r1 VERSION=2025 ./build.sh
+SOC=mt7981 BOARD=cmcc_a10 VERSION=2025 MULTI_LAYOUT=1 ./build.sh
+SOC=mt7986 BOARD=clx_s20l VERSION=2025 ./build.sh
+SOC=mt7986 BOARD=clx_s20p VERSION=2025 ./build.sh
 ```
-Usage: SOC=[mt7981|mt7986] BOARD=<board name> MULTI_LAYOUT=[0|1] ./build.sh
-eg: SOC=mt7981 BOARD=360t7 ./build.sh
-eg: SOC=mt7981 BOARD=wr30u MULTI_LAYOUT=1 ./build.sh
-eg: SOC=mt7981 BOARD=cmcc_rax3000m-emmc ./build.sh
-eg: SOC=mt7986 BOARD=redmi_ax6000 MULTI_LAYOUT=1 ./build.sh
-eg: SOC=mt7986 BOARD=jdcloud_re-cp-03 ./build.sh
+
+- SOC=mt7981/mt7986
+- VERSION=2025
+- MULTI_LAYOUT=1 （可选，仅多 layout 设备需加，例如 xiaomi-wr30u、redmi-ax6000）
+
+生成文件位于 output 目录
+
+## 使用 Python2.7 生成 GPT 镜像
+
+> 安装依赖
+
+```bash
+sudo apt-get install python2-dev swig
 ```
 
----
+> 执行
 
-### xiaomi-wr30u multi-layout uboot firmware compatibility
-|Firmware type|uboot (default)|uboot (immortalwrt-112m)|uboot (qwrt)|
-|:----:|:----:|:----:|:----:|
-|[xiaomi stock mtd8/mtd9](https://github.com/hanwckf/xiaomi-router-stock-ubi-bin/tree/main/xiaomi-wr30u)|√|×|×|
-|[immortalwrt-mt798x stock](https://github.com/hanwckf/immortalwrt-mt798x/blob/openwrt-21.02/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-xiaomi-mi-router-wr30u-stock.dts)|√|×|×|
-|[OpenWrt stock](https://github.com/openwrt/openwrt/blob/main/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-stock.dts)|√|×|×|
-|[immortalwrt stock](https://github.com/immortalwrt/immortalwrt/blob/master/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-stock.dts)|√|×|×|
-|[X-Wrt stock](https://github.com/x-wrt/x-wrt/blob/master/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-stock.dts)|√|×|×|
-|[immortalwrt-mt798x 112m](https://github.com/hanwckf/immortalwrt-mt798x/blob/openwrt-21.02/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7981-xiaomi-mi-router-wr30u-112m.dts)|×|√|×|
-|[GL.iNet by 237176253](https://www.right.com.cn/forum/thread-8297881-1-1.html)|×|√|×|
-|[X-Wrt 112m nmbm](https://github.com/x-wrt/x-wrt/blob/master/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-112m-nmbm.dts)|×|√|×|
-|[OpenWrt 112m nmbm](https://github.com/openwrt/openwrt/blob/main/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-112m-nmbm.dts)|×|√|×|
-|[immortalwrt 112m nmbm](https://github.com/immortalwrt/immortalwrt/blob/master/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-112m-nmbm.dts)|×|√|×|
-|[X-Wrt 112m nmbm](https://github.com/x-wrt/x-wrt/blob/master/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-112m-nmbm.dts)|×|√|×|
-|[QWRT](https://www.right.com.cn/forum/thread-8284824-1-1.html)|×|×|√|
-|[OpenWrt ubootmod](https://github.com/openwrt/openwrt/blob/main/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-ubootmod.dts)|×|×|×|
-|[immortalwrt ubootmod](https://github.com/immortalwrt/immortalwrt/blob/master/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-ubootmod.dts)|×|×|×|
-|[X-Wrt ubootmod](https://github.com/x-wrt/x-wrt/blob/master/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-wr30u-ubootmod.dts)|×|×|×|
+```bash
+chmod +x generate_gpt.sh
+./generate_gpt.sh
+```
 
-### redmi-ax6000 multi-layout uboot firmware compatibility
-|Firmware type|uboot (default)|uboot (immortalwrt-110m)|
-|:----:|:----:|:----:|
-|[xiaomi stock mtd8/mtd9](https://github.com/hanwckf/xiaomi-router-stock-ubi-bin/tree/main/redmi-ax6000)|√|×|
-|[immortalwrt-mt798x stock](https://github.com/hanwckf/immortalwrt-mt798x/blob/openwrt-21.02/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7986a-xiaomi-redmi-router-ax6000-stock.dts)|√|×|
-|[OpenWrt stock](https://github.com/openwrt/openwrt/blob/main/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-stock.dts)|√|×|
-|[immortalwrt stock](https://github.com/immortalwrt/immortalwrt/blob/master/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-stock.dts)|√|×|
-|[X-Wrt stock](https://github.com/x-wrt/x-wrt/blob/master/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-stock.dts)|√|×|
-|[immortalwrt-mt798x](https://github.com/hanwckf/immortalwrt-mt798x/blob/openwrt-21.02/target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7986a-xiaomi-redmi-router-ax6000.dts)|×|√|
-|[GL.iNet by 237176253](https://www.right.com.cn/forum/thread-8297881-1-1.html)|×|√|
-|[X-Wrt ubootlayout](https://github.com/x-wrt/x-wrt/blob/master/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-ubootlayout.dts)|×|√|
-|[OpenWrt ubootmod](https://github.com/openwrt/openwrt/blob/main/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-ubootmod.dts)|×|×|
-|[immortalwrt ubootmod](https://github.com/immortalwrt/immortalwrt/blob/master/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-ubootmod.dts)|×|×|
-|[X-Wrt ubootmod](https://github.com/x-wrt/x-wrt/blob/master/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-ubootmod.dts)|×|×|
+生成文件位于 output_gpt 目录。
+
+> 需在 mt798x_gpt 目录内放置对应设备的分区表 JSON，例如 atf-dir/tools/dev/gpt_editor/example/gpt.json。
+
+若启用 SDMMC=1（如 SDMMC=1 ./generate_gpt.sh），生成的 GPT 镜像将支持 MTK SDMMC。
+
+### 查看 GPT 信息
+
+在仓库根目录新建 mt798x_gpt_bin 文件夹，把 GPT 二进制文件放入其中，然后运行：
+
+```bash
+chmod +x show_gpt.sh
+./show_gpt.sh
+```
+
+脚本会解析 mt798x_gpt_bin 内所有 GPT 文件，并将分区信息输出到 output_gpt/gpt_info.txt。
+
+## 更换U-boot背景图
+  
+替换路径"uboot-mtk-20250711/failsafe/fsdata/bg.jpg"的bg.jpg文件，文件大小控制在200kB大小内

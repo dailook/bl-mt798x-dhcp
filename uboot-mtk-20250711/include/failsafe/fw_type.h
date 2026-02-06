@@ -9,6 +9,7 @@ typedef enum {
 	FW_TYPE_FIP,
 	FW_TYPE_FW,
 	FW_TYPE_INITRD,
+	FW_TYPE_FACTORY,
 } failsafe_fw_t;
 
 #endif

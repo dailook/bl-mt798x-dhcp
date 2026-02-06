@@ -73,22 +73,29 @@ static int rootdisk_set_rootfs_ubi(void *fdt, const char *volname, bool relax)
 	u32 media_handle;
 
 	chosen = fdt_path_offset(fdt, "/chosen");
-	if (chosen <= 0)
+	if (chosen < 0)
 		return 0;
 
+	/* OpenWrt 24.10 ubootmod style: rootdisk */
+	media_handle_p = fdt_getprop(fdt, chosen, "rootdisk", &len);
+	if (media_handle_p && len == 4)
+		goto found;
+
+	/* Fallback to legacy style: rootdisk-spim-nand */
 	media_handle_p = fdt_getprop(fdt, chosen, "rootdisk-spim-nand", &len);
-	if (media_handle_p <= 0 || len != 4) {
+	if (!media_handle_p || len != 4) {
 		if (!relax)
-			panic("'rootdisk-spim-nand' not found in image FDT blob\n");
+			panic("'rootdisk' or 'rootdisk-spim-nand' not found in image FDT blob\n");
 		return -1;
 	}
 
+found:
 	media_handle = fdt32_to_cpu(*media_handle_p);
 
 	volume_offset = fdt_node_offset_by_phandle(fdt, media_handle);
 	if (volume_offset < 0) {
 		if (!relax)
-			panic("Failed to locate node pointed by 'rootdisk-spim-nand'\n");
+			panic("Failed to locate node pointed by rootdisk phandle\n");
 		return -1;
 	}
 

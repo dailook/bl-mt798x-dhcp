@@ -72,6 +72,9 @@ int generic_mtd_write_fw(void *priv, const struct data_part_entry *dpe,
 int generic_mtd_write_simg(void *priv, const struct data_part_entry *dpe,
 			   const void *data, size_t size);
 
+int generic_mtd_write_factory(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size);
+
 int generic_mtd_validate_fw(void *priv, const struct data_part_entry *dpe,
 			    const void *data, size_t size);
 
@@ -122,6 +125,9 @@ int generic_mmc_write_simg(void *priv, const struct data_part_entry *dpe,
 
 int generic_mmc_write_gpt(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size);
+
+int generic_mmc_write_factory(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size);
 
 int generic_mmc_validate_fw(void *priv, const struct data_part_entry *dpe,
 			    const void *data, size_t size);

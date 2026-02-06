@@ -7,6 +7,7 @@
 
 #include <dm/ofnode.h>
 #include <linux/sizes.h>
+#include <linux/string.h>
 #include <u-boot/crc.h>
 
 #include "bootmenu_common.h"
@@ -21,10 +22,37 @@
 
 #define GPT_MAX_SIZE		(34 * 512)
 
+static const char *alt_partname_factory(const char *partname)
+{
+	if (!partname)
+		return NULL;
+
+	if (!strcmp(partname, "factory"))
+		return "Factory";
+
+	if (!strcmp(partname, "Factory"))
+		return "factory";
+
+	return NULL;
+}
+
 int write_mmc_part(const char *partname, const void *data, size_t size,
 		   bool verify)
 {
-	return mmc_write_part(MMC_DEV_INDEX, 0, partname, data, size, verify);
+	int ret;
+	const char *alt;
+
+	ret = mmc_write_part(MMC_DEV_INDEX, 0, partname, data, size, verify);
+	if (ret && (ret == -ENODEV || ret == -EINVAL)) {
+		alt = alt_partname_factory(partname);
+		if (alt) {
+			int ret2 = mmc_write_part(MMC_DEV_INDEX, 0, alt, data, size, verify);
+			if (!ret2)
+				return 0;
+		}
+	}
+
+	return ret;
 }
 
 int read_mmc_part(const char *partname, void *data, size_t *size,
@@ -32,8 +60,18 @@ int read_mmc_part(const char *partname, void *data, size_t *size,
 {
 	u64 part_size;
 	int ret;
+	const char *name = partname;
+	const char *alt;
 
-	ret = mmc_read_part_size(MMC_DEV_INDEX, 0, partname, &part_size);
+	ret = mmc_read_part_size(MMC_DEV_INDEX, 0, name, &part_size);
+	if (ret) {
+		alt = alt_partname_factory(partname);
+		if (alt) {
+			ret = mmc_read_part_size(MMC_DEV_INDEX, 0, alt, &part_size);
+			if (!ret)
+				name = alt;
+		}
+	}
 	if (ret)
 		return -EINVAL;
 
@@ -42,7 +80,7 @@ int read_mmc_part(const char *partname, void *data, size_t *size,
 
 	*size = (size_t)part_size;
 
-	return mmc_read_part(MMC_DEV_INDEX, 0, partname, data, *size);
+	return mmc_read_part(MMC_DEV_INDEX, 0, name, data, *size);
 }
 
 /******************************************************************************/
@@ -262,6 +300,12 @@ int generic_mmc_write_gpt(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size)
 {
 	return mmc_write_gpt(MMC_DEV_INDEX, 0, GPT_MAX_SIZE, data, size);
+}
+
+int generic_mmc_write_factory(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size)
+{
+	return write_mmc_part("factory", data, size, true);
 }
 
 int generic_mmc_validate_fw(void *priv, const struct data_part_entry *dpe,
