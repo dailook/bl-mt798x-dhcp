@@ -1,4 +1,4 @@
-# 适用于 mt798x 的 ATF 和 u-boot（带 DHCPD 支持）
+# 适用于 mt798x 的 ATF 和 u-boot（带 DHCPD 支持），动态流星WEB背景
 
 由 Yuzhii 修改的 hanwckf 版 MT798x U-Boot，增加了 DHCPD，Web UI由dailook再次修改
 
