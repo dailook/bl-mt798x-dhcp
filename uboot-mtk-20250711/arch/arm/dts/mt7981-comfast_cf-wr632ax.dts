@@ -17,8 +17,8 @@
 
 	config {
 		bootcmd = "mtkboardboot";
-		blink_led = "blue:status";
-		system_led = "red:status";
+		blink_led = "red:status";
+		system_led = "blue:status";
 	};
 
 	memory@40000000 {
