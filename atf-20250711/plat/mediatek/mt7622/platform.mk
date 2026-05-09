@@ -43,6 +43,10 @@ include $(APSOC_COMMON)/bl2/tbbr_post.mk
 include $(MTK_PLAT_SOC)/bl2/ar_post.mk
 include $(APSOC_COMMON)/bl2/bl2_image_post.mk
 
+# MT7622 ARMPLL target frequency (MHz): 1350 (default), 1350~1700 in 50MHz steps.
+MT7622_ARMPLL_FREQ_MHZ ?= 1350
+$(eval $(call add_define_val,MT7622_ARMPLL_FREQ_MHZ,$(MT7622_ARMPLL_FREQ_MHZ)))
+
 # Make sure make command parameter takes effect on .o files immediately
 include make_helpers/dep.mk
 

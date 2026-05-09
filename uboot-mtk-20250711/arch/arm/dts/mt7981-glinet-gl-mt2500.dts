@@ -130,7 +130,7 @@
 	status = "disabled";
 };
 
-&usb_phy {
+&usbtphy {
   status = "okay";
 };
 

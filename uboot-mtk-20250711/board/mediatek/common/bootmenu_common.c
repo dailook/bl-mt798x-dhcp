@@ -95,6 +95,20 @@ int generic_validate_bl33(void *priv, const struct data_part_entry *dpe,
 	return ret;
 }
 
+int generic_validate_next_bl(void *priv, const struct data_part_entry *dpe,
+			     const void *data, size_t size)
+{
+	bool rc;
+
+	rc = verify_standalone_image_ram(data, size);
+	if (!rc) {
+		cprintln(ERROR, "*** Firmware integrity verification failed ***");
+		return -EBADMSG;
+	}
+
+	return 0;
+}
+
 int generic_validate_simg(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size)
 {

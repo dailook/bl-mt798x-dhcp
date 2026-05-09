@@ -44,6 +44,10 @@ include $(APSOC_COMMON)/bl2/tbbr_post.mk
 include $(APSOC_COMMON)/bl2/ar_post.mk
 include $(APSOC_COMMON)/bl2/bl2_image_post.mk
 
+# MT7981 ARMPLL target frequency (MHz): 1300 (default), 1400~1800.
+MT7981_ARMPLL_FREQ_MHZ ?= 1300
+$(eval $(call add_define_val,MT7981_ARMPLL_FREQ_MHZ,$(MT7981_ARMPLL_FREQ_MHZ)))
+
 # Make sure make command parameter reflects on .o files immediately
 include make_helpers/dep.mk
 

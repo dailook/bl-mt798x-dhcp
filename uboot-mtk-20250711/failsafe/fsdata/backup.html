@@ -5,79 +5,129 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>备份</title>
 	<link rel="stylesheet" href="style.css">
+	<script src="i18n.js"></script>
 	<script src="main.js"></script>
 </head>
 <body onload="appInit('backup')" data-page="backup">
 	<div class="app">
 		<aside class="sidebar">
+			<div class="sidebar-brand">
+			</div>
+			<div class="sidebar-controls">
+				<div class="control-row">
+					<div>🌐 <span data-i18n="nav.language">语言</span></div>
+					<select id="lang_select" onchange="setLang(this.value)">
+						<option value="zh-cn" selected>简体中文</option>
+						<option value="en">English</option>
+					</select>
+				</div>
+			</div>
 			<ul class="sidebar-nav">
-				<li class="sidebar-nav-item"><a href="/"><span class="ico">🧰</span>固件更新</a></li>
-				<li class="sidebar-nav-item"><a href="bl2.html"><span class="ico">📦</span>BL2更新</a></li>
-				<li class="sidebar-nav-item"><a href="uboot.html"><span class="ico">🔑</span>U-Boot更新</a></li>
-				<li class="sidebar-nav-item"><a href="gpt.html"><span class="ico">💾</span>GPT更新</a></li>
-				<li class="sidebar-nav-item"><a href="factory.html"><span class="ico">🏭</span>Factory更新</a></li>
-				<li class="sidebar-nav-item"><a href="initramfs.html"><span class="ico">⚡</span>启动内存固件</a></li>
-				<li class="sidebar-nav-item"><a href="env.html"><span class="ico">⚙️</span>环境变量</a></li>
-				<li class="sidebar-nav-item"><a href="console.html"><span class="ico">💻</span>命令行</a></li>
-				<li class="sidebar-nav-item active"><a href="backup.html"><span class="ico">💾</span>备份</a></li>
-				<li class="sidebar-nav-item"><a href="reboot.html"><span class="ico">🔄</span>重启</a></li>
+				<li class="sidebar-nav-item" id="nav-firmware">
+					<a href="/"><span class="ico">🧰</span><span data-i18n="nav.firmware">固件更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-bl2">
+					<a href="bl2.html"><span class="ico">📦</span><span data-i18n="nav.bl2">BL2更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-uboot">
+					<a href="uboot.html"><span class="ico">🔑</span><span data-i18n="nav.uboot">U-Boot更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-gpt">
+					<a href="gpt.html"><span class="ico">💾</span><span data-i18n="nav.gpt">GPT更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-factory">
+					<a href="factory.html"><span class="ico">🏭</span><span data-i18n="nav.factory">Factory更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-initramfs">
+					<a href="initramfs.html"><span class="ico">⚡</span><span data-i18n="nav.initramfs">启动内存固件</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-env">
+					<a href="env.html"><span class="ico">⚙️</span><span data-i18n="nav.env">环境变量</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-console">
+					<a href="console.html"><span class="ico">💻</span><span data-i18n="nav.console">命令行</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-flash">
+					<a href="flash.html"><span class="ico">🔥</span><span data-i18n="nav.flash">闪存编辑</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-simg">
+					<a href="simg.html"><span class="ico">📀</span><span data-i18n="nav.simg">SIMG更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-backup">
+					<a><span class="ico">💾</span><span data-i18n="nav.backup">备份</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-reboot">
+					<a href="reboot.html"><span class="ico">🔄</span><span data-i18n="nav.reboot">重启</span></a>
+				</li>
 			</ul>
 		</aside>
-		<div class="main">
+		<main class="main">
 			<div id="m">
 				<div class="card-head">
-					<h1>💾 备份</h1>
-					<p id="hint">从设备存储中下载备份为 <strong>二进制文件</strong>。<br>备份数据将流式传输到浏览器并保存在您的计算机上。</p>
+					<h1 data-i18n="backup.title">备份</h1>
+					<p id="hint" data-i18n-html="backup.hint">
+						从设备存储下载备份为 <strong>二进制文件</strong>。<br>
+						备份数据将流式传输到您的浏览器并保存在计算机上。
+					</p>
 				</div>
 				<div class="card-main">
 					<div id="backup_info" class="backup-info"></div>
+
 					<div class="backup-form">
 						<div class="form-row form-row-2" id="backup_mode_target_row">
 							<div class="field">
-								<label for="backup_mode">模式：</label>
+								<label for="backup_mode" data-i18n="backup.label.mode">模式：</label>
 								<select id="backup_mode" class="field-control">
-									<option value="part">分区备份</option>
-									<option value="range">自定义范围</option>
+									<option value="part" data-i18n="backup.mode.part">分区备份</option>
+									<option value="range" data-i18n="backup.mode.range">自定义范围</option>
 								</select>
 							</div>
+
 							<div class="field" id="backup_target_field">
-								<label for="backup_target">目标：</label>
+								<label for="backup_target" data-i18n="backup.label.target">目标：</label>
 								<select id="backup_target" class="field-control"></select>
 							</div>
 						</div>
-						<div id="backup_range" class="backup-range" style="display:none;">
+
+						<div id="backup_range" class="backup-range" style="display: none;">
 							<div class="form-row form-row-2">
 								<div class="field">
-									<label for="backup_start">起始：</label>
-									<input id="backup_start" class="field-control" type="text" placeholder="0x0 / 64KiB">
+									<label for="backup_start" data-i18n="backup.label.start">起始：</label>
+									<input id="backup_start" class="field-control" type="text"
+										placeholder="0x0 / 64KiB">
 								</div>
 								<div class="field">
-									<label for="backup_end">结束（不包含）：</label>
-									<input id="backup_end" class="field-control" type="text" placeholder="0x1000 / 128KiB">
+									<label for="backup_end" data-i18n="backup.label.end">结束（不包含）：</label>
+									<input id="backup_end" class="field-control" type="text"
+										placeholder="0x1000 / 128KiB">
 								</div>
 							</div>
 							<div id="backup_range_hint" class="backup-range-hint"></div>
 						</div>
+
 						<div class="form-actions">
-							<button type="button" class="button" onclick="startBackup()">📥 下载</button>
+							<button type="button" class="button" onclick="startBackup()"
+								data-i18n="backup.action.download">下载</button>
 						</div>
 					</div>
-					<div class="bar" id="bar" style="display:none; --percent:0;"></div>
-					<div id="backup_status" style="display:none;"></div>
+
+					<div class="bar" id="bar" style="display: none; --percent: 0;"></div>
+					<div id="backup_status" style="display: none;"></div>
 				</div>
 				<div class="card-foot">
 					<div class="i w">
-						<strong>⚠️ 注意事项：</strong>
+						<strong data-i18n="common.warnings">注意事项</strong>
 						<ul>
-							<li>备份过程中不要关闭设备电源</li>
-							<li>自定义范围读取原始字节，请谨慎设置偏移量</li>
-							<li>大容量备份可能需要较长时间</li>
+							<li data-i18n="backup.warn.1">备份期间不要关闭设备电源</li>
+							<li data-i18n="backup.warn.2">自定义范围读取原始字节；请注意偏移量</li>
+							<li data-i18n="backup.warn.3">大型备份可能需要很长时间，具体取决于存储速度
+							</li>
 						</ul>
 					</div>
 				</div>
 			</div>
 			<div id="version"></div>
-		</div>
+		</main>
 	</div>
 </body>
 </html>

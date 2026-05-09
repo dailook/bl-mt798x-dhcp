@@ -26,6 +26,21 @@ from json import JSONDecoder
 from collections import OrderedDict
 
 
+def format_partition_name(raw_name):
+    if raw_name is None:
+        return ""
+
+    name = raw_name
+    try:
+        if not isinstance(name, unicode):
+            name = name.decode("utf-8", "ignore")
+    except:
+        name = str(raw_name)
+
+    # GPT entry name is fixed-width and may contain NUL paddings.
+    return name.replace(u"\x00", u"").strip()
+
+
 def get_template_GPT(template="MTK_MBR"):
     template_file = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "template", template
@@ -77,7 +92,7 @@ def read_gpt(path):
         print("\t Calculated: %.8x" % primary_table_checksum)
     print("Start of primary table: %d" % primary_header.table_start_lba)
     for entry in primary_table_entries:
-        print("[PARTITION] Name: %s" % entry.name)
+        print("[PARTITION] Name: %s" % format_partition_name(entry.name))
         print(
             "\t type guid:\t{%s}"
             % str(uuid.UUID(bytes_le=entry.partition_type_guid))

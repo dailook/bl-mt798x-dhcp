@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+#
+# Copyright (c) 2026 Yuzhii0718
+#
+# MT7622 platform-specific configurations
+#
+
+if _PLAT_MT7622
+
+choice
+	prompt "MT7622 ARMPLL frequency (MHz)"
+	depends on _PLAT_MT7622
+	default MT7622_ARMPLL_FREQ_1350
+
+config MT7622_ARMPLL_FREQ_1350
+	bool "1350 MHz (default)"
+config MT7622_ARMPLL_FREQ_1400
+	bool "1400 MHz"
+config MT7622_ARMPLL_FREQ_1450
+	bool "1450 MHz"
+config MT7622_ARMPLL_FREQ_1500
+	bool "1500 MHz"
+config MT7622_ARMPLL_FREQ_1550
+	bool "1550 MHz"
+config MT7622_ARMPLL_FREQ_1600
+	bool "1600 MHz"
+config MT7622_ARMPLL_FREQ_1650
+	bool "1650 MHz"
+config MT7622_ARMPLL_FREQ_1700
+	bool "1700 MHz"
+
+endchoice
+
+# Makefile/C option bridge for MT7622 ARMPLL frequency selection.
+config MT7622_ARMPLL_FREQ_MHZ
+	int
+	depends on _PLAT_MT7622
+	default 1350 if MT7622_ARMPLL_FREQ_1350
+	default 1400 if MT7622_ARMPLL_FREQ_1400
+	default 1450 if MT7622_ARMPLL_FREQ_1450
+	default 1500 if MT7622_ARMPLL_FREQ_1500
+	default 1550 if MT7622_ARMPLL_FREQ_1550
+	default 1600 if MT7622_ARMPLL_FREQ_1600
+	default 1650 if MT7622_ARMPLL_FREQ_1650
+	default 1700 if MT7622_ARMPLL_FREQ_1700
+
+endif # _PLAT_MT7622

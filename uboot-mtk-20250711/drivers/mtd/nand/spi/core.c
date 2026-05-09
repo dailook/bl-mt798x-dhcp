@@ -886,23 +886,83 @@ static const struct nand_ops spinand_ops = {
 };
 
 static const struct spinand_manufacturer *spinand_manufacturers[] = {
+#ifdef CONFIG_MTD_SPI_NAND_ALLIANCEMEMORY
 	&alliancememory_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_ATO
 	&ato_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_BIWIN
+	&biwin_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_DOSILICON
 	&dosilicon_spinand_manufacturer,
-	&etron_spinand_manufacturer,
-	&fmsh_spinand_manufacturer,
-	&foresee_spinand_manufacturer,
-	&gigadevice_spinand_manufacturer,
-	&gsto_spinand_manufacturer,
-	&macronix_spinand_manufacturer,
-	&micron_spinand_manufacturer,
-	&paragon_spinand_manufacturer,
-	&skyhigh_spinand_manufacturer,
-	&toshiba_spinand_manufacturer,
-	&winbond_spinand_manufacturer,
-	&esmt_c8_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_ESMT
 	&esmt_8c_spinand_manufacturer,
+	&esmt_c8_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_ETRON
+	&etron_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_FMSH
+	&fmsh_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_FORESEE
+	&foresee_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_GIGADEVICE
+	&gigadevice_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_GSTO
+	&gsto_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_HIKSEMI
+	&hiksemi_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_HYF
+	&hyf_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_JSC
+	&jsc_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_MACRONIX
+	&macronix_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_MICRON
+	&micron_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_PARAGON
+	&paragon_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_SILICONGO
+	&silicongo_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_SKYHIGH
+	&skyhigh_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_TOSHIBA
+	&toshiba_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_UNIM
+	&unim_spinand_manufacturer,
+	&unim_zl_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_WINBOND
+	&winbond_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_WODPOSIT
+	&wodposit_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_XINCUN
+	&xincun_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_XTX
 	&xtx_spinand_manufacturer,
+#endif
+#ifdef CONFIG_MTD_SPI_NAND_ZBIT
+	&zbit_spinand_manufacturer,
+#endif
 };
 
 static int spinand_manufacturer_match(struct spinand_device *spinand,

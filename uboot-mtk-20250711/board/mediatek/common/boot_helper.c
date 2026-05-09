@@ -21,6 +21,8 @@
 #include "boot_helper.h"
 #include "dual_boot.h"
 #include "dm_parser.h"
+#include "fw_dec.h"
+#include "mtk_ar.h"
 
 #define ARGLIST_INCR				20
 
@@ -145,6 +147,27 @@ int boot_from_mem(ulong data_load_addr)
 	char *cmd = NULL, *p;
 	size_t len, i;
 	int ret;
+
+#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
+	if (genimg_get_format((void *)data_load_addr) == IMAGE_FORMAT_LEGACY) {
+		char legacy_cmd[64];
+		bool autostart;
+
+		snprintf(legacy_cmd, sizeof(legacy_cmd), "bootm 0x%lx",
+			 data_load_addr);
+
+		autostart = env_get_autostart();
+		if (!autostart)
+			env_set("autostart", "1");
+
+		ret = run_command(legacy_cmd, 0);
+
+		if (!autostart)
+			env_set("autostart", "0");
+
+		return ret;
+	}
+#endif
 
 	bootconf_stock = fit_image_conf_def((void *)data_load_addr);
 
@@ -611,6 +634,12 @@ void board_prep_linux(struct bootm_headers *images)
 	u32 newlen;
 	int ret;
 
+#ifdef CONFIG_MTK_FW_ENCRYPT
+	ret = fw_dec_cleanup();
+	if (ret)
+		panic("Cannot cleanup FW encryption environment\n");
+#endif
+
 	if (!(CONFIG_IS_ENABLED(OF_LIBFDT) && images->ft_len)) {
 		printf("Warning: no FDT present for current image!\n");
 		return;
@@ -656,6 +685,18 @@ void board_prep_linux(struct bootm_headers *images)
 		}
 	}
 
+#ifdef CONFIG_MTK_ANTI_ROLLBACK
+	nodeoffset = fdt_find_or_add_subnode(fdt, 0, "chosen");
+	if (nodeoffset < 0)
+		return;
+
+	ret = mtk_ar_set_fdt_fw_ar_ver(fdt, nodeoffset, images->fw_ar_ver);
+	if (ret) {
+		panic("Error: failed to set anti-rollback version\n");
+		return;
+	}
+#endif
+
 	ret = fdt_root_prop_merge(fdt);
 	if (ret) {
 		panic("Error: failed to set FDT root props\n");
@@ -663,4 +704,12 @@ void board_prep_linux(struct bootm_headers *images)
 	}
 
 	fdt_shrink_to_minimum(fdt, 0);
+
+#ifdef CONFIG_MTK_AR_UPDATE_AR_VER
+	ret = mtk_ar_update_fw_ar_ver(images->fw_ar_ver);
+	if (ret) {
+		panic("Error: failed to update FW anti-rollback version\n");
+		return;
+	}
+#endif
 }

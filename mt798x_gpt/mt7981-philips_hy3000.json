@@ -1,0 +1,51 @@
+{
+	"gpt": {
+		"start": 0,
+		"end": 33
+	},
+	"u-boot-env": {
+		"start": 8192,
+		"end": 9215
+	},
+	"factory": {
+		"start": 9216,
+		"end": 13311
+	},
+	"fip": {
+		"start": 13312,
+		"end": 17407
+	},
+	"kernel": {
+		"start": 17408,
+		"end": 82943
+	},
+	"rootfs": {
+		"start": 82944,
+		"end": 1106944
+	},
+	"unknown0": {
+		"start": 1107968,
+		"end": 1128447,
+		"unique_part_guid": "{9fd257f8-0117-af43-9f02-b4770a49e5e3}"
+	},
+	"unknown1": {
+		"start": 1128448,
+		"end": 9517055,
+		"unique_part_guid": "{130dfd04-5920-6b4b-b0e3-a78c960b7841}"
+	},
+	"unknown2": {
+		"start": 9517056,
+		"end": 240203775,
+		"unique_part_guid": "{c98cf674-38a9-a14d-889a-9382f7582c01}"
+	},
+	"unknown3": {
+		"start": 240203776,
+		"end": 240224255,
+		"unique_part_guid": "{4a40d997-934b-3c41-b0b3-12d0bcbb295b}"
+	},
+	"unknown4": {
+		"start": 240224256,
+		"end": 244252638,
+		"unique_part_guid": "{8408b35c-f436-5e4b-af78-69548e8152d4}"
+	}
+}

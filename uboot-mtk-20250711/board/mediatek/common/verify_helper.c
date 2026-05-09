@@ -16,6 +16,7 @@
 #include "upgrade_helper.h"
 #include "verify_helper.h"
 #include "untar.h"
+#include "mtk_ar.h"
 
 /* Only supports native byte-order for squashfs */
 #define SQUASHFS_MAGIC		0x73717368
@@ -105,6 +106,51 @@ static bool fit_record_hashes(const void *fit, int image_noffset,
 	return hashes->flags != 0;
 }
 
+#ifdef CONFIG_MTK_SECURE_BOOT
+static int fit_all_config_verify(const void *fit)
+{
+	int confs_noffset;
+	int noffset;
+	int ndepth;
+	int count;
+
+	/* Find configurations parent node offset */
+	confs_noffset = fdt_path_offset(fit, FIT_CONFS_PATH);
+	if (confs_noffset < 0) {
+		printf("Can't get configurations parent node '%s' (%s)\n",
+		       FIT_CONFS_PATH, fdt_strerror(confs_noffset));
+		return 0;
+	}
+
+	/* Process its subnodes, print out configurations details */
+	printf("## Checking hash(es) integrity for FIT Image at %08lx ...\n",
+	       (ulong)fit);
+	for (ndepth = 0, count = 0,
+		noffset = fdt_next_node(fit, confs_noffset, &ndepth);
+			(noffset >= 0) && (ndepth > 0);
+			noffset = fdt_next_node(fit, noffset, &ndepth)) {
+		if (ndepth == 1) {
+			/*
+			 * Direct child node of the configurations parent node,
+			 * i.e. configuration node.
+			 */
+			printf("   Hash(es) Integrity for Configuration %u (%s): ",
+			       count++, fit_get_name(fit, noffset, NULL));
+
+			if (fit_config_verify(fit, noffset))
+				return 0;
+#ifdef CONFIG_MTK_ANTI_ROLLBACK
+			if (fit_config_ar_ver_verify(fit, noffset, NULL))
+				return 0;
+#endif
+			printf("\n");
+		}
+	}
+
+	return 1;
+}
+#endif /* CONFIG_MTK_SECURE_BOOT */
+
 /**
  * verify_kernel_fit() - Verify kernel FIT image
  *
@@ -125,6 +171,13 @@ static bool verify_kernel_fit(const void *fit,  size_t size,
 		printf("Wrong FIT image format\n");
 		return false;
 	}
+
+#ifdef CONFIG_MTK_SECURE_BOOT
+	if (!fit_all_config_verify(fit)) {
+		printf("FIT image configuration integrity checking failed\n");
+		return false;
+	}
+#endif
 
 	if (!fit_all_image_verify(fit)) {
 		printf("FIT image integrity checking failed\n");
@@ -435,6 +488,13 @@ bool verify_image_ram(const void *data, size_t size, u32 block_size,
 			return false;
 		}
 
+#ifdef CONFIG_MTK_SECURE_BOOT
+		if (!fit_all_config_verify(data)) {
+			printf("FIT image configuration integrity checking failed\n");
+			return false;
+		}
+#endif
+
 		if (!fit_all_image_verify(data)) {
 			printf("FIT image integrity checking failed\n");
 			return false;
@@ -478,6 +538,43 @@ bool verify_image_ram(const void *data, size_t size, u32 block_size,
 	return verify_rootfs_fit(data,
 				 data + ii->kernel_size + ii->padding_size,
 				 ii->rootfs_size, rootfs_hashes);
+}
+
+/**
+ * verify_standalone_image_ram() - Parse and verify standalone image
+ *
+ * @description:
+ * Verify standalone image. FIT raw image and legacy image are supported.
+ *
+ * @param data: image to be parsed
+ * @param size: size of the image
+ * @return true if integrity verification passed
+ */
+bool verify_standalone_image_ram(const void *data, size_t size)
+{
+	switch (genimg_get_format(data)) {
+#if defined(CONFIG_LEGACY_IMAGE_FORMAT)
+	case IMAGE_FORMAT_LEGACY:
+		return verify_legacy_image(data, size, NULL);
+#endif
+#if defined(CONFIG_FIT)
+	case IMAGE_FORMAT_FIT:
+		if (fit_check_format(data, size)) {
+			printf("Wrong FIT image format\n");
+			return false;
+		}
+
+		if (!fit_all_image_verify(data)) {
+			printf("FIT image integrity checking failed\n");
+			return false;
+		}
+
+		return true;
+#endif
+	default:
+		printf("Error: Invalid image format\n");
+		return false;
+	}
 }
 
 /**

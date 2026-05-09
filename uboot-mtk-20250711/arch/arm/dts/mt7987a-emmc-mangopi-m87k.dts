@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+#include "mt7987a-emmc-airpi-e87n-common.dtsi"
+
+/ {
+	model = "MediaTek MT7987 EMMC mangopi M87K";
+	compatible = "mediatek,mt7987", "mediatek,mt7987-emmc-rfb",
+			"mediatek,mt7987a";
+};
+
+&eth0 {
+	status = "okay";
+	phy-mode = "2500base-x";
+	phy-handle = <&phy1>;
+
+	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <1>;
+		reset-assert-us = <100000>;
+		reset-deassert-us = <100000>;
+		reset-gpios = <&pio 42 GPIO_ACTIVE_LOW>;
+		interrupts = <41 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&pio>;
+		realtek,aldps-enable;
+		realtek,led-link-select = <0xa7 0xa7 0x0>;
+	};
+};

@@ -1,0 +1,48 @@
+load_factory_data=if env exists factory_data_present ; then else mtd read Factory $loadaddr 0x0 0x1000 ; setenv factory_data_present 1 ; fi
+lan_mac_factory=run load_factory_data ; setexpr macoffs $loadaddr + 0x2a ; env readmem -b lan_mac $macoffs 0x6 ; setenv lan_mac_factory ; setenv macoffs
+wan_mac_factory=run load_factory_data ; setexpr macoffs $loadaddr + 0x24 ; env readmem -b wan_mac $macoffs 0x6 ; setenv wan_mac_factory ; setenv macoffs
+label_mac_factory=run load_factory_data ; setexpr macoffs $loadaddr + 0x4 ; env readmem -b label_mac $macoffs 0x6 ; setenv label_mac_factory ; setenv macoffs
+ethaddr_factory=setenv ethaddr $lan_mac ; setenv ethaddr_factory
+wifi_mac_factory=setenv wifi_mac $label_mac ; setenv wifi_mac_factory
+env_cleanup=setenv load_factory_data ; setenv factory_data_present ; setenv env_cleanup
+ipaddr=192.168.1.1
+serverip=192.168.1.10
+loadaddr=0x46000000
+bootargs=root=/dev/fit0 rootwait
+console=earlycon=uart8250,mmio32,0x11002000 console=ttyS0
+bootcmd=run validate_bootmedia; if test $bootmedia = "nor"; then run boot_nor; else if test $bootmedia = "sd"; then run boot_sd_firmware; fi; fi
+bootconf=config-1#mt7981b-gatonetworks-gdsp-gps
+bootdelay=0
+bootfile=openwrt-mediatek-filogic-gatonetworks_gdsp-initramfs-kernel.bin
+bootfile_upg=openwrt-mediatek-filogic-gatonetworks_gdsp-squashfs-sysupgrade.itb
+bootmenu_confirm_return=askenv - Press ENTER to return to menu ; bootmenu 60
+bootmenu_default=0
+bootmenu_delay=0
+bootmenu_title=      [0;34m( ( ( [1;39mOpenWrt[0;34m ) ) )[0m
+bootmenu_0=Initialize environment.=run _firstboot
+bootmenu_0d=Run default boot command.=run boot_default
+bootmenu_1=Boot system via TFTP.=run boot_tftp ; run bootmenu_confirm_return
+bootmenu_2=Boot system from selected boot media.=run bootcmd ; run bootmenu_confirm_return
+bootmenu_3=Load system via TFTP then write to selected boot media.=run load_tftp_sysupgrade ; run bootmenu_confirm_return
+bootmenu_4=Reset all settings to factory defaults.=run reset_factory ; reset
+bootmenu_5=Reboot.=reset
+boot_first=if button reset ; then run boot_tftp ; setenv flag_recover 1 ; run boot_default ; fi ; bootmenu
+boot_default=if env exists flag_recover ; then else run bootcmd ; fi ; run boot_tftp_forever
+boot_nor=mtd read firmware ${loadaddr} ; bootm $loadaddr#$bootconf
+boot_sd_firmware=setenv bootconf "config-1#mt7981b-gatonetworks-gdsp-sd#mt7981b-gatonetworks-gdsp-sd-boot"; run sdmmc_read_firmware && bootm $loadaddr#$bootconf
+boot_tftp=tftpboot $loadaddr $bootfile && bootm $loadaddr#$bootconf
+boot_tftp_forever=while true ; do run boot_tftp ; sleep 1 ; done
+mmc_read_vol=mmc read $loadaddr $part_addr 0x100 && imszb $loadaddr image_size && test 0x$image_size -le 0x$part_size && mmc read $loadaddr 0x$part_addr 0x$image_size && setexpr filesize $image_size * 0x200
+mmc_write_vol=imszb $loadaddr image_size && test 0x$image_size -le 0x$part_size && mmc erase 0x$part_addr 0x$image_size && mmc write $loadaddr 0x$part_addr 0x$image_size
+sd_part_default=FIT
+sdmmc_read_firmware=part start mmc 0 $sd_part_default part_addr && part size mmc 0 $sd_part_default part_size && run mmc_read_vol
+sdmmc_write_firmware=part start mmc 0 $sd_part_default part_addr && part size mmc 0 $sd_part_default part_size && run mmc_write_vol
+load_tftp_sysupgrade=run validate_bootmedia; tftpboot $loadaddr $bootfile_upg && iminfo $loadaddr && if test $bootmedia = "nor"; then run nor_write_firmware; else if test $bootmedia = "sd"; then run sdmmc_write_firmware; fi; fi
+reset_factory=env default -a && saveenv && reset
+nor_pad_size=setexpr image_eb $filesize / 0x1000 ; setexpr tmp1 image_size % 0x1000 ; test 0x$tmp1 -gt 0 && setexpr image_eb $image_eb + 1 ; setexpr image_eb $image_eb * 0x1000
+nor_write_firmware=run nor_pad_size ; test 0x$image_eb -le 0x1e80000 && mtd erase firmware 0x0 0x$image_eb && mtd write firmware $loadaddr 0x0 $filesize
+_init_env=setenv _init_env ; saveenv
+_firstboot=setenv _firstboot ; run _switch_to_menu ; run lan_mac_factory ; run wan_mac_factory ; run label_mac_factory ; run env_cleanup ; run ethaddr_factory ; run wifi_mac_factory ; run _init_env ; run boot_first
+_switch_to_menu=setenv _switch_to_menu ; setenv bootdelay 3 ; setenv bootmenu_delay 3 ; setenv bootmenu_0 $bootmenu_0d ; setenv bootmenu_0d ; run _bootmenu_update_title
+_bootmenu_update_title=setenv _bootmenu_update_title ; setenv bootmenu_title "$bootmenu_title       [33m$ver[0m"
+validate_bootmedia=test $bootmedia != "nor" -a $bootmedia != "sd" && setenv bootmedia "nor"

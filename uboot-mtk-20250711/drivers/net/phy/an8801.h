@@ -1,38 +1,38 @@
-/*******************************************************************************
-*  Copyright Statement:
-*  --------------------
-*  This software is protected by Copyright and the information contained
-*  herein is confidential. The software may not be copied and the information
-*  contained herein may not be used or disclosed except with the written
-*  permission of Airoha Technology Corp. (C) 2023
-*
-*  BY OPENING THIS FILE, BUYER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
-*  THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("AIROHA SOFTWARE")
-*  RECEIVED FROM AIROHA AND/OR ITS REPRESENTATIVES ARE PROVIDED TO BUYER ON
-*  AN "AS-IS" BASIS ONLY. AIROHA EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES,
-*  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
-*  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR NONINFRINGEMENT.
-*  NEITHER DOES AIROHA PROVIDE ANY WARRANTY WHATSOEVER WITH RESPECT TO THE
-*  SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY, INCORPORATED IN, OR
-*  SUPPLIED WITH THE AIROHA SOFTWARE, AND BUYER AGREES TO LOOK ONLY TO SUCH
-*  THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. AIROHA SHALL ALSO
-*  NOT BE RESPONSIBLE FOR ANY AIROHA SOFTWARE RELEASES MADE TO BUYER'S
-*  SPECIFICATION OR TO CONFORM TO A PARTICULAR STANDARD OR OPEN FORUM.
-*
-*  BUYER'S SOLE AND EXCLUSIVE REMEDY AND AIROHA'S ENTIRE AND CUMULATIVE
-*  LIABILITY WITH RESPECT TO THE AIROHA SOFTWARE RELEASED HEREUNDER WILL BE,
-*  AT AIROHA'S OPTION, TO REVISE OR REPLACE THE AIROHA SOFTWARE AT ISSUE,
-*  OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE CHARGE PAID BY BUYER TO
-*  AIROHA FOR SUCH AIROHA SOFTWARE AT ISSUE.
-*
-*  THE TRANSACTION CONTEMPLATED HEREUNDER SHALL BE CONSTRUED IN ACCORDANCE
-*  WITH THE LAWS OF THE STATE OF CALIFORNIA, USA, EXCLUDING ITS CONFLICT OF
-*  LAWS PRINCIPLES.  ANY DISPUTES, CONTROVERSIES OR CLAIMS ARISING THEREOF AND
-*  RELATED THERETO SHALL BE SETTLED BY ARBITRATION IN SAN FRANCISCO, CA, UNDER
-*  THE RULES OF THE INTERNATIONAL CHAMBER OF COMMERCE (ICC).
-*
-*******************************************************************************/
 /* SPDX-License-Identifier: GPL-2.0 */
+/*******************************************************************************
+ *  Copyright Statement:
+ *  --------------------
+ *  This software is protected by Copyright and the information contained
+ *  herein is confidential. The software may not be copied and the information
+ *  contained herein may not be used or disclosed except with the written
+ *  permission of Airoha Technology Corp. (C) 2023
+ *
+ *  BY OPENING THIS FILE, BUYER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
+ *  THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("AIROHA SOFTWARE")
+ *  RECEIVED FROM AIROHA AND/OR ITS REPRESENTATIVES ARE PROVIDED TO BUYER ON
+ *  AN "AS-IS" BASIS ONLY. AIROHA EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES,
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR NONINFRINGEMENT.
+ *  NEITHER DOES AIROHA PROVIDE ANY WARRANTY WHATSOEVER WITH RESPECT TO THE
+ *  SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY, INCORPORATED IN, OR
+ *  SUPPLIED WITH THE AIROHA SOFTWARE, AND BUYER AGREES TO LOOK ONLY TO SUCH
+ *  THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. AIROHA SHALL ALSO
+ *  NOT BE RESPONSIBLE FOR ANY AIROHA SOFTWARE RELEASES MADE TO BUYER'S
+ *  SPECIFICATION OR TO CONFORM TO A PARTICULAR STANDARD OR OPEN FORUM.
+ *
+ *  BUYER'S SOLE AND EXCLUSIVE REMEDY AND AIROHA'S ENTIRE AND CUMULATIVE
+ *  LIABILITY WITH RESPECT TO THE AIROHA SOFTWARE RELEASED HEREUNDER WILL BE,
+ *  AT AIROHA'S OPTION, TO REVISE OR REPLACE THE AIROHA SOFTWARE AT ISSUE,
+ *  OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE CHARGE PAID BY BUYER TO
+ *  AIROHA FOR SUCH AIROHA SOFTWARE AT ISSUE.
+ *
+ *  THE TRANSACTION CONTEMPLATED HEREUNDER SHALL BE CONSTRUED IN ACCORDANCE
+ *  WITH THE LAWS OF THE STATE OF CALIFORNIA, USA, EXCLUDING ITS CONFLICT OF
+ *  LAWS PRINCIPLES.  ANY DISPUTES, CONTROVERSIES OR CLAIMS ARISING THEREOF AND
+ *  RELATED THERETO SHALL BE SETTLED BY ARBITRATION IN SAN FRANCISCO, CA, UNDER
+ *  THE RULES OF THE INTERNATIONAL CHAMBER OF COMMERCE (ICC).
+ *
+ *******************************************************************************/
 /*************************************************
  * FILE NAME:  an8801.h
  * PURPOSE:
@@ -44,18 +44,18 @@
 #ifndef __AN8801_H
 #define __AN8801_H
 /************************************************************************
-*                  D E F I N E S
-************************************************************************/
+ *                  D E F I N E S
+ ************************************************************************/
 #define AIR_UBOOT_REVISION ((((U_BOOT_VERSION_NUM / 1000) % 10) << 20) | \
-                        (((U_BOOT_VERSION_NUM / 100) % 10) << 16) | \
-                        (((U_BOOT_VERSION_NUM / 10) % 10) << 12) | \
-                        ((U_BOOT_VERSION_NUM % 10) << 8) | \
-                        (((U_BOOT_VERSION_NUM_PATCH / 10) % 10) << 4) | \
-                        ((U_BOOT_VERSION_NUM_PATCH % 10) << 0))
+			   (((U_BOOT_VERSION_NUM / 100) % 10) << 16) | \
+			   (((U_BOOT_VERSION_NUM / 10) % 10) << 12) | \
+			   ((U_BOOT_VERSION_NUM % 10) << 8) | \
+			   (((U_BOOT_VERSION_NUM_PATCH / 10) % 10) << 4) | \
+			   ((U_BOOT_VERSION_NUM_PATCH % 10) << 0))
 /* NAMING DECLARATIONS
  */
 
-#define AN8801_DRIVER_VERSION  "1.0.1"
+#define AN8801_DRIVER_VERSION  "1.0.2"
 
 #define AN8801R_MDIO_PHY_ID     0x1
 #define AN8801R_PHY_ID1         0xc0ff
@@ -127,7 +127,7 @@
 #define LED_BLK_EVT_1000M_RX        BIT(1)
 #define LED_BLK_EVT_1000M_TX        BIT(0)
 
-#define UNIT_LED_BLINK_DURATION     1024
+#define UNIT_LED_BLINK_DURATION     780
 
 #define AN8801SB_SGMII_AN0              (0x10220000)
 #define AN8801SB_SGMII_AN4              (0x10220010)
@@ -143,7 +143,7 @@
 #define EFIFO_CTRL_10_100               (0xff)
 #define EFIFO_WM_VALUE_1G               (0x10100303)
 #define EFIFO_WM_VALUE_10_100           (0x05050303)
-#define AN8801SB_SGMII_AN0_ANRESTART    (0x0200)    /* Serdes auto negotation restart */
+#define AN8801SB_SGMII_AN0_ANRESTART    (0x0200)    /* Serdes auto negotiation restart */
 
 #define PHY_PRE_SPEED_REG               (0x2b)
 
@@ -155,24 +155,24 @@
 #define RGMII_TXDELAY_FORCE_MODE    BIT(24)
 
 /*
-For reference only
-*/
+ *For reference only
+ */
 /* User-defined.B */
 /* Link on(1G/100M/10M), no activity */
 #define AIR_LED0_ON \
-    (LED_ON_EVT_LINK_1000M | LED_ON_EVT_LINK_100M | LED_ON_EVT_LINK_10M)
+	(LED_ON_EVT_LINK_1000M | LED_ON_EVT_LINK_100M | LED_ON_EVT_LINK_10M)
 #define AIR_LED0_BLK     (0x0)
 /* No link on, activity(1G/100M/10M TX/RX) */
 #define AIR_LED1_ON      (0x0)
 #define AIR_LED1_BLK \
-    (LED_BLK_EVT_1000M_TX | LED_BLK_EVT_1000M_RX | \
-    LED_BLK_EVT_100M_TX | LED_BLK_EVT_100M_RX | \
-    LED_BLK_EVT_10M_TX | LED_BLK_EVT_10M_RX)
+	(LED_BLK_EVT_1000M_TX | LED_BLK_EVT_1000M_RX | \
+	LED_BLK_EVT_100M_TX | LED_BLK_EVT_100M_RX | \
+	LED_BLK_EVT_10M_TX | LED_BLK_EVT_10M_RX)
 /* Link on(100M/10M), activity(100M/10M TX/RX) */
 #define AIR_LED2_ON      (LED_ON_EVT_LINK_100M | LED_ON_EVT_LINK_10M)
 #define AIR_LED2_BLK \
-    (LED_BLK_EVT_100M_TX | LED_BLK_EVT_100M_RX | \
-    LED_BLK_EVT_10M_TX | LED_BLK_EVT_10M_RX)
+	(LED_BLK_EVT_100M_TX | LED_BLK_EVT_100M_RX | \
+	LED_BLK_EVT_10M_TX | LED_BLK_EVT_10M_RX)
 /* User-defined.E */
 
 /* Invalid data */
@@ -184,69 +184,69 @@ For reference only
 /* DATA TYPE DECLARATIONS
  */
 enum AIR_LED_GPIO_PIN_T {
-    AIR_LED_GPIO1 = 1,
-    AIR_LED_GPIO2,
-    AIR_LED_GPIO3,
-    AIR_LED_GPIO5 = 5,
-    AIR_LED_GPIO8 = 8,
-    AIR_LED_GPIO9
+	AIR_LED_GPIO1 = 1,
+	AIR_LED_GPIO2,
+	AIR_LED_GPIO3,
+	AIR_LED_GPIO5 = 5,
+	AIR_LED_GPIO8 = 8,
+	AIR_LED_GPIO9
 };
 
 enum AIR_LED_T {
-    AIR_LED0 = 0,
-    AIR_LED1,
-    AIR_LED2,
-    AIR_LED3
+	AIR_LED0 = 0,
+	AIR_LED1,
+	AIR_LED2,
+	AIR_LED3
 };
 
 enum AIR_LED_BLK_DUT_T {
-    AIR_LED_BLK_DUR_32M = 0,
-    AIR_LED_BLK_DUR_64M,
-    AIR_LED_BLK_DUR_128M,
-    AIR_LED_BLK_DUR_256M,
-    AIR_LED_BLK_DUR_512M,
-    AIR_LED_BLK_DUR_1024M,
-    AIR_LED_BLK_DUR_LAST
+	AIR_LED_BLK_DUR_32M = 0,
+	AIR_LED_BLK_DUR_64M,
+	AIR_LED_BLK_DUR_128M,
+	AIR_LED_BLK_DUR_256M,
+	AIR_LED_BLK_DUR_512M,
+	AIR_LED_BLK_DUR_1024M,
+	AIR_LED_BLK_DUR_LAST
 };
 
 enum AIR_LED_POLARITY {
-    AIR_ACTIVE_LOW = 0,
-    AIR_ACTIVE_HIGH,
+	AIR_ACTIVE_LOW = 0,
+	AIR_ACTIVE_HIGH,
 };
 
 enum AIR_LED_MODE_T {
-    AIR_LED_MODE_DISABLE = 0,
-    AIR_LED_MODE_USER_DEFINE,
-    AIR_LED_MODE_LAST
+	AIR_LED_MODE_DISABLE = 0,
+	AIR_LED_MODE_USER_DEFINE,
+	AIR_LED_MODE_LAST
 };
 
 enum AIR_RGMII_DELAY_STEP_T {
-    AIR_RGMII_DELAY_NOSTEP = 0,
-    AIR_RGMII_DELAY_STEP_1 = 1,
-    AIR_RGMII_DELAY_STEP_2 = 2,
-    AIR_RGMII_DELAY_STEP_3 = 3,
-    AIR_RGMII_DELAY_STEP_4 = 4,
-    AIR_RGMII_DELAY_STEP_5 = 5,
-    AIR_RGMII_DELAY_STEP_6 = 6,
-    AIR_RGMII_DELAY_STEP_7 = 7,
+	AIR_RGMII_DELAY_NOSTEP = 0,
+	AIR_RGMII_DELAY_STEP_1 = 1,
+	AIR_RGMII_DELAY_STEP_2 = 2,
+	AIR_RGMII_DELAY_STEP_3 = 3,
+	AIR_RGMII_DELAY_STEP_4 = 4,
+	AIR_RGMII_DELAY_STEP_5 = 5,
+	AIR_RGMII_DELAY_STEP_6 = 6,
+	AIR_RGMII_DELAY_STEP_7 = 7,
 };
 
 struct AIR_LED_CFG_T {
-    u16 en;
-    u16 gpio;
-    u16 pol;
-    u16 on_cfg;
-    u16 blk_cfg;
+	u16 en;
+	u16 gpio;
+	u16 pol;
+	u16 on_cfg;
+	u16 blk_cfg;
 };
 
 struct an8801r_priv {
-    struct AIR_LED_CFG_T  led_cfg[MAX_LED_SIZE];
-    u32                   led_blink_cfg;
-    u8                    rxdelay_force;
-    u8                    txdelay_force;
-    u16                   rxdelay_step;
-    u8                    rxdelay_align;
-    u16                   txdelay_step;
+	struct AIR_LED_CFG_T  led_cfg[MAX_LED_SIZE];
+	u32                   led_blink_cfg;
+	u8                    rxdelay_force;
+	u8                    txdelay_force;
+	u16                   rxdelay_step;
+	u8                    rxdelay_align;
+	u16                   txdelay_step;
 };
 
 #endif /* End of __AN8801_H */

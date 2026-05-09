@@ -1,0 +1,56 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Backup</title>
+		<link rel="stylesheet" href="/style.css">
+		<script src="/main.js"></script>
+	</head>
+	<body onload="backupInitOld()">
+		<div id="m">
+			<h1>BACKUP</h1>
+			<p id="hint">
+				Download a backup from device storage as a <strong>binary file</strong>.<br>
+				The backup data will be streamed to your browser and saved on your computer.
+			</p>
+			<div id="backup_info"></div>
+			<form id="backup_form" onsubmit="return false;">
+				<p>
+					Mode:
+					<select id="backup_mode">
+						<option value="part">Partition backup</option>
+						<option value="range">Custom range</option>
+					</select>
+				</p>
+				<p>
+					Target:
+					<select id="backup_target"></select>
+				</p>
+				<div id="backup_range" style="display:none;">
+					<p>
+						Start: <input id="backup_start" type="text" placeholder="0x0 / 64KiB">
+					</p>
+					<p>
+						End (exclusive): <input id="backup_end" type="text" placeholder="0x1000 / 128KiB">
+					</p>
+				</div>
+				<p>
+					<input class="button" type="button" value="Download" onclick="startBackupOld()">
+				</p>
+			</form>
+			<div>
+				<div class="bar" id="bar" style="display: none; --percent: 0;"></div>
+			</div>
+			<div id="backup_status"></div>
+			<div class="i w">
+				<strong>WARNINGS</strong>
+				<ul>
+					<li>do not power off the device during backup</li>
+					<li>custom range reads raw bytes; be careful with offsets</li>
+					<li>large backups may take a long time depending on storage speed</li>
+				</ul>
+			</div>
+		</div>
+		<div id="version"></div>
+	</body>
+</html>

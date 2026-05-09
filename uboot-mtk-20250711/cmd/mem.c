@@ -33,6 +33,7 @@
 #include <linux/compiler.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
+#include <linux/sizes.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -710,6 +711,29 @@ static int do_mem_loopw(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 }
 #endif /* CONFIG_LOOPW */
+
+#ifdef CONFIG_CMD_MEMSIZE
+static int do_mem_size(struct cmd_tbl *cmdtp, int flag, int argc,
+		       char *const argv[])
+{
+	u64 memsize = gd->ram_size;
+
+	if (argc > 1) {
+		if (!strcmp(argv[1], "m"))
+			memsize = memsize / SZ_1M;
+		else if (!strcmp(argv[1], "g"))
+			memsize = memsize / SZ_1G;
+		if (argc > 2)
+			env_set_ulong(argv[2], memsize);
+		else
+			printf("%lld%s\n", memsize, argv[1]);
+	} else {
+		printf("%lld\n", memsize);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_CMD_MEMSIZE */
 
 #ifdef CONFIG_CMD_MEMTEST
 static ulong mem_test_alt(vu_long *buf, ulong start_addr, ulong end_addr,
@@ -1401,6 +1425,14 @@ U_BOOT_CMD(
 	"[.b, .w, .l" HELP_Q "] address number_of_objects data_to_write"
 );
 #endif /* CONFIG_LOOPW */
+
+#ifdef CONFIG_CMD_MEMSIZE
+U_BOOT_CMD(
+	msize,	3,	1,	do_mem_size,
+	"get detected ram size, optional set env variable with value",
+	"[m, g] [envvar]"
+);
+#endif /* CONFIG_CMD_MEMSIZE */
 
 #ifdef CONFIG_CMD_MEMTEST
 U_BOOT_CMD(

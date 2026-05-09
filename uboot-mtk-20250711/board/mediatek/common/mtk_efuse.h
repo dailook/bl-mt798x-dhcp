@@ -74,11 +74,7 @@
  */
 #define MTK_SIP_EFUSE_DISABLE		0x82000504
 
-enum MTK_EFUSE_FIELD {
-	EFUSE_AR_EN = 27,
-	EFUSE_FW_AR_VER0 = 34,
-	EFUSE_FW_AR_VER1
-};
+int mtk_efuse_get_len(uint32_t efuse_field, uint32_t *len_p);
 
 int mtk_efuse_read(uint32_t efuse_field,
 		   uint8_t *read_buffer,

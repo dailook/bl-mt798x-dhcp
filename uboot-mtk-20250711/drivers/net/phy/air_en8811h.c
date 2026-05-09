@@ -208,7 +208,7 @@ static int air_phy_write_page(struct phy_device *phydev, int page)
 	return phy_write(phydev, MDIO_DEVAD_NONE, AIR_EXT_PAGE_ACCESS, page);
 }
 
-int air_phy_select_page(struct phy_device *phydev, int page)
+static int air_phy_select_page(struct phy_device *phydev, int page)
 {
 	int ret, oldpage;
 
@@ -225,7 +225,7 @@ int air_phy_select_page(struct phy_device *phydev, int page)
 	return oldpage;
 }
 
-int air_phy_restore_page(struct phy_device *phydev, int oldpage, int ret)
+static int air_phy_restore_page(struct phy_device *phydev, int oldpage, int ret)
 {
 	int r;
 

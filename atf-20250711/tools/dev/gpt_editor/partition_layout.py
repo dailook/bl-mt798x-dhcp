@@ -18,6 +18,7 @@ import os
 import hashlib
 import traceback
 import re
+import io
 from json import JSONDecoder
 from collections import OrderedDict
 import argparse
@@ -29,9 +30,8 @@ def get_color_table():
     )
     colors = []
     try:
-        fp = open(template_file, "r")
-        data = fp.read()
-        fp.close()
+        with io.open(template_file, "r", encoding="utf-8") as fp:
+            data = fp.read()
         for desc in data.split("\n"):
             color = desc.split(":")[0].strip().replace("\n", "")
             if color.strip() != "" and "#" not in color:
@@ -49,11 +49,21 @@ def get_default_font():
     return template_file
 
 
+def get_font(size):
+    font_path = get_default_font()
+    try:
+        if os.path.exists(font_path):
+            return ImageFont.truetype(font_path, size)
+    except:
+        traceback.print_exc()
+    return ImageFont.load_default()
+
+
 def parse(in_path):
     f_in = None
     jobj = None
     try:
-        f_in = open(in_path, "r")
+        f_in = io.open(in_path, "r", encoding="utf-8")
     except:
         traceback.print_exc()
         print("[ERROR] input file '%s' not found" % (in_path))
@@ -72,15 +82,17 @@ def parse(in_path):
     return jobj
 
 
-def draw(json_file, png_file):
+def draw(json_file, png_file, title_text=None):
     jobj = parse(json_file)
     assert jobj != None
     colors = get_color_table()
+    if not colors:
+        raise RuntimeError("[ERROR] color table is empty or missing")
     partition_num = 0
     partition_name = []
     partition_start = []
     partition_size = []
-    for key, value in jobj.iteritems():
+    for key, value in jobj.items():
         partition_name.append(key)
         blksize = 512
         start = int(value["start"]) * blksize
@@ -96,20 +108,33 @@ def draw(json_file, png_file):
         partition_start.append(start)
         partition_size.append("%d%s" % (size, unit))
         partition_num += 1
-    img = Image.new("RGB", (400, 80 * partition_num), color="white")
+    title_height = 0
+    if title_text:
+        title_height = 50
+    img = Image.new("RGB", (400, 80 * partition_num + title_height), color="white")
+    if title_text:
+        d_title = ImageDraw.Draw(img)
+        font_title = get_font(28)
+        d_title.text((10, 10), title_text, fill="black", font=font_title)
     for num, part in enumerate(partition_name):
-        color_id = int(hashlib.sha1(part).hexdigest(), 16) % len(colors)
+        if isinstance(part, str):
+            part_bytes = part.encode("utf-8")
+        else:
+            part_bytes = bytes(part)
+        color_id = int(hashlib.sha1(part_bytes).hexdigest(), 16) % len(colors)
         d = ImageDraw.Draw(img)
-        font = ImageFont.truetype(get_default_font(), 24)
-        d.rectangle([0, 80 * num, 200, 80 * (num + 1)], fill="black")
+        font = get_font(24)
+        y0 = title_height + 80 * num
+        y1 = title_height + 80 * (num + 1)
+        d.rectangle([0, y0, 200, y1], fill="black")
         d.rectangle(
-            [0 + 1, 80 * num + 1, 200 - 1, 80 * (num + 1) - 1], fill=colors[color_id]
+            [0 + 1, y0 + 1, 200 - 1, y1 - 1], fill=colors[color_id]
         )
         size = partition_size[num]
-        d.text((10, 80 * num), "%s (%s)" % (part, size) , fill="black", font=font)
-        font = ImageFont.truetype(get_default_font(), 16)
+        d.text((10, y0), "%s (%s)" % (part, size) , fill="black", font=font)
+        font = get_font(16)
         offset = "0x" + ("%x" % partition_start[num]).upper().zfill(8)
-        d.text((200 + 2, 80 * num), offset, fill="black", font=font)
+        d.text((200 + 2, y0), offset, fill="black", font=font)
     img.save(png_file)
 
 def main():
@@ -132,12 +157,21 @@ def main():
         help="specify the output layout png path",
         dest="output",
     )
+    parser.add_argument(
+        "--title",
+        action="store_true",
+        help="add title using input json filename (without extension)",
+        dest="title",
+    )
     args = parser.parse_args()
 
     if args.output and args.input:
         in_path = args.input[0]
         out_path = args.output[0]
-        draw(in_path, out_path)
+        title_text = None
+        if args.title:
+            title_text = os.path.splitext(os.path.basename(in_path))[0]
+        draw(in_path, out_path, title_text=title_text)
     else:
         parser.print_help()
 

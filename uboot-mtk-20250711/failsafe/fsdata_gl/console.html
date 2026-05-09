@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Web Console</title>
+		<link rel="stylesheet" href="/style.css">
+		<script src="/main.js"></script>
+	</head>
+	<body onload="consoleInitOld()">
+		<div id="m">
+			<h1>WEB CONSOLE</h1>
+			<p id="hint">
+				Run <strong>U-Boot commands</strong> directly in your browser.<br>
+				Output is streamed by polling (no WebSocket). Treat this as <strong>root access</strong>.
+			</p>
+			<pre id="console_out" class="console-output"></pre>
+			<p>
+				Token (optional): <input id="console_token" type="password">
+				<input class="button" type="button" value="Clear" onclick="consoleClearOld()">
+			</p>
+			<p>
+				Command: <input id="console_cmd" type="text" placeholder="help; printenv; mtd list">
+				<input class="button" type="button" value="Send" onclick="consoleSendOld()">
+			</p>
+			<div id="console_status"></div>
+			<div class="i w">
+				<strong>WARNINGS</strong>
+				<ul>
+					<li>This console can execute arbitrary U-Boot commands.</li>
+					<li>Do not expose this page on untrusted networks.</li>
+					<li>If you set env failsafe_console_token, enter it above to unlock.</li>
+				</ul>
+			</div>
+		</div>
+		<div id="version"></div>
+	</body>
+</html>

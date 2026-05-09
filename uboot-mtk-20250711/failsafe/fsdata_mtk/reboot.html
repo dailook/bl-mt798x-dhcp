@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+	<title>Rebooting device</title>
+	<link rel="stylesheet" href="/style.css">
+	<script src="/main.js"></script>
+	<script>
+		function rebootInitOld() {
+			ajax({
+				url: '/reboot',
+				done: function (resp) { },
+				timeout: 30000
+			});
+		}
+	</script>
+</head>
+
+<body onload="rebootInitOld()">
+	<div id="main">
+		<h1>REBOOTING DEVICE</h1>
+		<p id="info">
+			Reboot request has been sent. Please wait...<br>
+			This page may be in not responding status for a short time.
+		</p>
+	</div>
+</body>
+
+</html>

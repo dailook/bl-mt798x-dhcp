@@ -40,18 +40,9 @@ int mtk_efuse_read(uint32_t efuse_field,
 	struct arm_smccc_res res;
 	uint32_t val;
 
-	/* get efuse length */
-	ret = mtk_efuse_smc(MTK_SIP_EFUSE_GET_LEN,
-			    efuse_field, 0x0, 0x0, 0x0,
-			    &res);
-	if (ret < 0)
+	ret = mtk_efuse_get_len(efuse_field, &efuse_len);
+	if (ret)
 		return ret;
-	else if (res.a0 != MTK_EFUSE_SUCCESS) {
-		printf("%s : get efuse length fail (%lu)\n",
-		       __func__, res.a0);
-		return -1;
-	}
-	efuse_len = res.a1;
 
 	/* verify buffer */
 	if (!read_buffer)
@@ -95,18 +86,9 @@ int mtk_efuse_write(uint32_t efuse_field,
 	struct arm_smccc_res res;
 	void *data;
 
-	/* get efuse length */
-	ret = mtk_efuse_smc(MTK_SIP_EFUSE_GET_LEN,
-			    efuse_field, 0x0, 0x0, 0x0,
-			    &res);
-	if (ret < 0)
+	ret = mtk_efuse_get_len(efuse_field, &efuse_len);
+	if (ret)
 		return ret;
-	else if (res.a0 != MTK_EFUSE_SUCCESS) {
-		printf("%s : get efuse length fail (%lu)\n",
-		       __func__, res.a0);
-		return -1;
-	}
-	efuse_len = res.a1;
 
 	/* verify buffer */
 	if (!write_buffer)
@@ -132,6 +114,30 @@ int mtk_efuse_write(uint32_t efuse_field,
 	free(data);
 
 	return ret;
+}
+
+int mtk_efuse_get_len(uint32_t efuse_field, uint32_t *len_p)
+{
+	int ret;
+	struct arm_smccc_res res;
+
+	if (!len_p)
+		return -EINVAL;
+
+	ret = mtk_efuse_smc(MTK_SIP_EFUSE_GET_LEN,
+			    efuse_field, 0x0, 0x0, 0x0,
+			    &res);
+	if (ret < 0)
+		return ret;
+	else if (res.a0 != MTK_EFUSE_SUCCESS) {
+		printf("%s : get efuse length fail (%lu)\n",
+		       __func__, res.a0);
+		return -1;
+	}
+
+	*len_p = res.a1;
+
+	return 0;
 }
 
 int mtk_efuse_disable(uint32_t efuse_field)

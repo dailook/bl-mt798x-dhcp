@@ -40,6 +40,8 @@ bool verify_image_ram(const void *data, size_t size, u32 block_size,
 		      struct fit_hashes *kernel_hashes,
 		      struct fit_hashes *rootfs_hashes);
 
+bool verify_standalone_image_ram(const void *data, size_t size);
+
 bool read_verify_kernel(struct image_read_priv *rpriv, void *ptr, u64 addr,
 			size_t max_size, size_t *actual_size,
 			struct fit_hashes *hashes);

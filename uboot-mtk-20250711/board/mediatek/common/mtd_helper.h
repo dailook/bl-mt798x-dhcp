@@ -27,7 +27,11 @@ int mtd_read_skip_bad(struct mtd_info *mtd, u64 offset, size_t size,
 
 int mtd_update_generic(struct mtd_info *mtd, const void *data, size_t size,
 		       bool verify);
+int mtd_update_partition(const char *name, const void *data, size_t size,
+			 bool verify);
+
 int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot);
+int boot_from_mtd_partition(const char *name, bool do_boot);
 
 void gen_mtd_probe_devices(void);
 
@@ -36,12 +40,22 @@ int update_ubi_volume_raw(struct ubi_volume *vol, const char *volume,
 			  int vol_id, const void *data, size_t size,
 			  uint64_t reserved_size, bool dynamic);
 
+int ubi_update_volume(const char *name, const void *data, size_t size);
+
+int boot_from_ubi_volume(const char *name, bool do_boot);
+
 void ubi_import_bsp_conf(void);
 int ubi_update_bsp_conf(const void *bspconf, uint32_t index);
 
 int mtd_upgrade_image(const void *data, size_t size);
 int mtd_boot_image(bool do_boot);
 
+int mtd_boot_standalone_image(const char *name, bool bypass_ubi, bool do_boot);
+int mtd_upgrade_standalone_image(const char *name, bool bypass_ubi,
+				 const void *data, size_t size);
+
 void mtd_boot_set_defaults(void *fdt);
+
+int mtd_verify_linux_fdt(void *fdt);
 
 #endif /* _MTD_HELPER_H_ */

@@ -21,6 +21,22 @@
 		system_led = "red:status";
 	};
 
+	mtd-layout {
+		layout@0 {
+			label = "default";
+			// mtd layout for stock layout firmware
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),65536k(ubi),6144k(pdt_data),6144k(pdt_data_1),1024k(exp),38400k(plugin)";
+		};
+
+		layout@1 {
+			label = "immortalwrt-112m";
+			// mtd layout for 112m ubi firmware
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),112M(ubi)";
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 

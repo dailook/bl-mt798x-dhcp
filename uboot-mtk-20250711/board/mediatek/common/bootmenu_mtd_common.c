@@ -117,6 +117,20 @@ int generic_mtd_boot_image(bool do_boot)
 	return mtd_boot_image(do_boot);
 }
 
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mtd_boot_next_bl(bool do_boot)
+{
+	return boot_from_mtd_partition(CONFIG_MTK_NEXT_BL_NAME, do_boot);
+}
+
+#ifdef CONFIG_MTD_UBI
+int generic_ubi_boot_next_bl(bool do_boot)
+{
+	return boot_from_ubi_volume(CONFIG_MTK_NEXT_BL_NAME, do_boot);
+}
+#endif
+#endif
+
 int generic_mtd_write_bl2(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size)
 {
@@ -240,6 +254,12 @@ int generic_ubi_write_fip(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size)
 {
 	return ubi_write_fip(NULL, PART_FIP_NAME, data, size);
+}
+
+int generic_ubi_write_factory(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size)
+{
+	return ubi_update_volume("factory", data, size);
 }
 
 #ifdef CONFIG_MTK_DUAL_FIP
@@ -434,6 +454,22 @@ int generic_mtd_write_fw(void *priv, const struct data_part_entry *dpe,
 
 	return ret;
 }
+
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mtd_write_next_bl(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size)
+{
+	return mtd_update_partition(CONFIG_MTK_NEXT_BL_NAME, data, size, true);
+}
+
+#ifdef CONFIG_MTD_UBI
+int generic_ubi_write_next_bl(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size)
+{
+	return ubi_update_volume(CONFIG_MTK_NEXT_BL_NAME, data, size);
+}
+#endif
+#endif
 
 int generic_mtd_write_simg(void *priv, const struct data_part_entry *dpe,
 			   const void *data, size_t size)

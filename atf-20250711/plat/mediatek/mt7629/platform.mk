@@ -50,6 +50,10 @@ include $(MTK_PLAT_SOC)/drivers/efuse/efuse.mk
 include $(APSOC_COMMON)/bl2/tbbr_post.mk
 include $(APSOC_COMMON)/bl2/bl2_image_post.mk
 
+# MT7629 ARMPLL target frequency (MHz): 1200 (default), 1200~1500 in 50MHz steps.
+MT7629_ARMPLL_FREQ_MHZ ?= 1200
+$(eval $(call add_define_val,MT7629_ARMPLL_FREQ_MHZ,$(MT7629_ARMPLL_FREQ_MHZ)))
+
 # Make sure make command parameter takes effect on .o files immediately
 include make_helpers/dep.mk
 

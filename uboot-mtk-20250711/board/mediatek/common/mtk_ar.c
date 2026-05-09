@@ -1,253 +1,148 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
  *
- * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <log.h>
-#include <linux/types.h>
+#include <errno.h>
+#include <image.h>
 #include <linux/arm-smccc.h>
+#include "mtk_ar.h"
 
-#include "mtk_efuse.h"
+#define FIT_FW_AR_VER_PROP		"fw_ar_ver"
 
-#define MTK_AR_MAX_VER			64
-#define MTK_AR_NUM_FW_AR_VER            2
+#define MTK_SIP_GET_AR_VER		0xC2000590
+#define MTK_SIP_UPDATE_AR_VER		0xC2000591
+#define MTK_SIP_LOCK_AR_VER		0xC2000592
 
-extern int fit_conf_get_fw_ar_ver(const void *fit, int conf_noffset,
-				  ulong *fw_ar_ver);
+enum AR_VER_ID {
+	BL_AR_VER_ID = 0,
+	FW_AR_VER_ID,
+};
 
-static uint32_t mtk_ar_get_far_left_set_bit_pos(uint64_t num)
+static int fit_conf_get_fw_ar_ver(const void *fit, int conf_noffset,
+				  uint32_t *ar_ver_p)
 {
-	uint32_t i;
-	uint32_t pos = 0;
+	const uint32_t *img_ar_ver_p;
+	int len = 0;
 
-	for (i = 1; i <= MTK_AR_MAX_VER && num != 0; i++, num >>= 1) {
-		if (num & 0x1)
-			pos = i;
-	}
+	img_ar_ver_p = fdt_getprop(fit, conf_noffset, FIT_FW_AR_VER_PROP, &len);
+	if (!img_ar_ver_p || len != sizeof(*img_ar_ver_p))
+		return -EINVAL;
 
-	return pos;
-}
-
-static int mtk_ar_set_set_bits(uint64_t *num, uint32_t count)
-{
-	*num = 0;
-
-	if (count > MTK_AR_MAX_VER) {
-		printf("[%s] count > %d\n",
-		       __func__, MTK_AR_MAX_VER);
-		goto error;
-	}
-
-	while (count) {
-		*num <<= 1;
-		*num |= 0x1;
-		count--;
-	}
+	*ar_ver_p = fdt32_to_cpu(*img_ar_ver_p);
 
 	return 0;
-
-error:
-	return -1;
 }
 
-static void mtk_ar_dis_efuse_fw_ar_ver(void)
+static int sip_get_ar_ver(uint32_t id, uint32_t *ar_ver)
 {
-	mtk_efuse_disable(EFUSE_FW_AR_VER0);
-	mtk_efuse_disable(EFUSE_FW_AR_VER1);
+	struct arm_smccc_res res = { 0 };
+
+	arm_smccc_smc(MTK_SIP_GET_AR_VER, id, 0, 0, 0, 0, 0, 0, &res);
+
+	if (res.a0)
+		return res.a0;
+
+	*ar_ver = res.a1;
+
+	return 0;
 }
 
-static int mtk_ar_get_efuse_ar_en(uint32_t *efuse_ar_en)
+static int sip_update_ar_ver(uint32_t id, uint32_t ar_ver)
 {
+	struct arm_smccc_res res = { 0 };
+
+	arm_smccc_smc(MTK_SIP_UPDATE_AR_VER, id, ar_ver, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
+static int sip_lock_ar_ver(void)
+{
+	struct arm_smccc_res res = { 0 };
+
+	arm_smccc_smc(MTK_SIP_LOCK_AR_VER, 0, 0, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
+int fit_config_ar_ver_verify(const void *fit, int conf_noffset,
+			     uint32_t *ar_ver_p)
+{
+	uint32_t dev_ar_ver = 0;
+	uint32_t img_ar_ver = 0;
 	int ret;
 
-	ret = mtk_efuse_read(EFUSE_AR_EN,
-			     (uint8_t *)efuse_ar_en,
-			     sizeof(*efuse_ar_en));
+	if (!fit || conf_noffset < 0)
+		return -EINVAL;
+
+	if (ar_ver_p)
+		*ar_ver_p = 0;
+
+	ret = fit_conf_get_fw_ar_ver(fit, conf_noffset, &img_ar_ver);
 	if (ret) {
-		printf("[%s] read anti-rollback status fail\n (%d)",
-		       __func__, ret);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	return -1;
-}
-
-static int mtk_ar_get_efuse_fw_ar_ver(uint32_t *efuse_fw_ar_ver)
-{
-	int ret;
-	uint32_t i;
-	uint32_t *buffer;
-	uint64_t read_buffer[1] = { 0 };
-
-	for (i = 0, buffer = (uint32_t *)read_buffer;
-	     i < MTK_AR_NUM_FW_AR_VER;
-	     i++, buffer++) {
-		ret = mtk_efuse_read(EFUSE_FW_AR_VER0 + i,
-				     (uint8_t *)buffer,
-				     sizeof(*buffer));
-		if (ret) {
-			printf("[%s] read FW anti-rollback version fail (%d)\n",
-			       __func__, ret);
-			goto error;
-		}
-	}
-
-	debug("[%s] read_buffer[0] = %llx\n", __func__, read_buffer[0]);
-
-	/*
-	 * Each bit in read_buffer[0] represent an anti-rollback version,
-	 * so we only need to get the far left set bit position.
-	 *
-	 * bit0  set as high represent the efuse anti-rollback version is 1
-	 * bit1  set as high represent the efuse anti-rollback version is 2
-	 * ...
-	 * bit63 set as high represent the efuse anti-rollback version is 64
-	 */
-	*efuse_fw_ar_ver = mtk_ar_get_far_left_set_bit_pos(read_buffer[0]);
-
-	debug("[%s] efuse_fw_ar_ver = %u\n", __func__, *efuse_fw_ar_ver);
-
-	return 0;
-
-error:
-	return -1;
-}
-
-static int mtk_ar_set_efuse_fw_ar_ver(uint32_t fw_ar_ver)
-{
-	int ret;
-	uint32_t i;
-	uint32_t *buffer;
-	uint32_t read_buffer = 0;
-	uint64_t write_buffer[1] = { 0 };
-
-	debug("[%s] fw_ar_ver = %u\n", __func__, fw_ar_ver);
-
-	/*
-	 * Each bit in write_buffer[0] represent an anti-rollback version,
-	 * so we need to set these relative bit as high.
-	 *
-	 * if efuse anti-rollback version is 1, set bit0 as high
-	 * if efuse anti-rollback version is 2, set bit0 to bit1 as high
-	 * ...
-	 * if efuse anti-rollback version is 64, set bit0 to bit63 as high
-	 */
-	ret = mtk_ar_set_set_bits(write_buffer, fw_ar_ver);
-	if (ret)
-		goto error;
-
-	debug("[%s] write_buffer[0] = %llx\n", __func__, write_buffer[0]);
-
-	/*
-	 *                          bit 0~31              bit 32~63
-	 * write_buffer[0] :  EFUSE_FW_AR_VERSION0  EFUSE_FW_AR_VERSION1
-	 */
-
-	for (i = 0, buffer = (uint32_t *)write_buffer;
-	     i < MTK_AR_NUM_FW_AR_VER;
-	     i++, buffer++) {
-		/* no need to write if write data same with fuse data */
-		ret = mtk_efuse_read(EFUSE_FW_AR_VER0 + i,
-				     (uint8_t *)&read_buffer,
-				     sizeof(read_buffer));
-		if (ret) {
-			printf("[%s] read FW anti-rollback version fail (%d)\n",
-			       __func__, ret);
-			goto error;
-		}
-		if (*buffer == read_buffer)
-			continue;
-
-		ret = mtk_efuse_write(EFUSE_FW_AR_VER0 + i,
-				      (uint8_t *)buffer,
-				      sizeof(*buffer));
-		if (ret) {
-			printf("[%s] write FW anti-rollback version fail (%d)\n",
-			       __func__, ret);
-			goto error;
-		}
-	}
-
-	return 0;
-
-error:
-	return -1;
-}
-
-int mtk_ar_verify_fw_ar_ver(const void *fit, int conf_noffset,
-			    uint32_t *fw_ar_ver)
-{
-	int ret;
-	uint32_t efuse_fw_ar_ver;
-
-	printf("   Verifying FW Anti-Rollback Version ... ");
-
-	ret = fit_conf_get_fw_ar_ver(fit, conf_noffset,
-				     (ulong *)fw_ar_ver);
-	if (ret) {
-		printf("fw_ar_ver:unavailable ");
-		goto error;
+		printf("fw_ar_ver:unavailable\n");
+		return ret;
 	} else {
-		printf("fw_ar_ver:%u", *fw_ar_ver);
+		printf("fw_ar_ver:%u", img_ar_ver);
 	}
 
-	ret = mtk_ar_get_efuse_fw_ar_ver(&efuse_fw_ar_ver);
+	ret = sip_get_ar_ver(FW_AR_VER_ID, &dev_ar_ver);
 	if (ret) {
-		printf(",unavailable ");
-		goto error;
+		if (ret == -ENODEV) {
+			/* not support separate FW version, get BL version */
+			ret = sip_get_ar_ver(BL_AR_VER_ID, &dev_ar_ver);
+			if (ret) {
+				printf(",unavailable\n");
+				return ret;
+			}
+		} else {
+			printf(",unavailable\n");
+			return ret;
+		}
 	}
 
-	if (*fw_ar_ver < efuse_fw_ar_ver) {
-		printf("<%u- ", efuse_fw_ar_ver);
-		goto error;
-	} else if (*fw_ar_ver == efuse_fw_ar_ver) {
-		printf("=%u+ ", efuse_fw_ar_ver);
+	if (img_ar_ver < dev_ar_ver) {
+		printf("<%u-\n", dev_ar_ver);
+		return -EINVAL;
+	} else if (img_ar_ver == dev_ar_ver) {
+		printf("=%u+ ", dev_ar_ver);
 	} else {
-		printf(">%u+ ", efuse_fw_ar_ver);
+		printf(">%u+ ", dev_ar_ver);
 	}
 
-	printf("OK\n");
+	if (ar_ver_p)
+		*ar_ver_p = img_ar_ver;
 
 	return 0;
-
-error:
-	printf("FAIL\n");
-	return -1;
 }
 
-int mtk_ar_update_fw_ar_ver(uint32_t fw_ar_ver)
+int mtk_ar_update_fw_ar_ver(uint32_t ar_ver)
 {
 	int ret;
-	uint32_t efuse_ar_en;
-	uint32_t efuse_fw_ar_ver;
 
-	ret = mtk_ar_get_efuse_ar_en(&efuse_ar_en);
-	if (ret)
-		goto error;
-
-	ret = mtk_ar_get_efuse_fw_ar_ver(&efuse_fw_ar_ver);
-	if (ret)
-		goto error;
-
-	debug("[%s] fw_ar_ver = %u, efuse_fw_ar_ver = %u, efuse_ar_en = %u\n",
-	      __func__, fw_ar_ver, efuse_fw_ar_ver, efuse_ar_en);
-
-	if (fw_ar_ver > efuse_fw_ar_ver && efuse_ar_en == 1) {
-		ret = mtk_ar_set_efuse_fw_ar_ver(fw_ar_ver);
-		printf("Updating FW Anti-Rollback Version ... %u -> %u %s\n",
-		       efuse_fw_ar_ver, fw_ar_ver, ret == 0 ? "OK" : "FAIL");
-		if (ret)
-			goto error;
+	ret = sip_update_ar_ver(FW_AR_VER_ID, ar_ver);
+	if (ret == -ENODEV) {
+		/* not support separate FW version, update to BL version */
+		ret = sip_update_ar_ver(BL_AR_VER_ID, ar_ver);
 	}
 
-	mtk_ar_dis_efuse_fw_ar_ver();
+	sip_lock_ar_ver();
+	return ret;
+}
 
-	return 0;
+int mtk_ar_set_fdt_fw_ar_ver(void *fdt, int noffset, uint32_t ar_ver)
+{
+	char buf[4] = "";
+	int len;
 
-error:
-	return -1;
+	if (!fdt || noffset < 0)
+		return -EINVAL;
+
+	len = snprintf(buf, sizeof(buf), "%u", ar_ver);
+	if (len < 0 || len >= sizeof(buf))
+		return -EINVAL;
+
+	return fdt_setprop(fdt, noffset, FIT_FW_AR_VER_PROP, buf, len + 1);
 }

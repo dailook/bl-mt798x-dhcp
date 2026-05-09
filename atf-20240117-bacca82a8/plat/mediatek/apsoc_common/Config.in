@@ -601,6 +601,8 @@ config ENABLE_JTAG
 	default 1
 	depends on _ENABLE_JTAG
 
+source "plat/mediatek/mt7981/Config.in"
+source "plat/mediatek/mt7986/Config.in"
 source "plat/mediatek/mt7988/Config.in"
 
 endmenu # Platform configurations

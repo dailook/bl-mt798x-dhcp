@@ -88,6 +88,10 @@
 		reg = <0x8000000 0x1000>;
 	};
 
+	rng {
+		compatible = "mediatek,mt7981-rng";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupt-parent = <&gic>;

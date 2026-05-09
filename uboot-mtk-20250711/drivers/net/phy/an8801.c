@@ -18,9 +18,6 @@
 #include <linux/mdio.h>
 #include "an8801.h"
 
-#define phydev_cfg(phy)            ((struct an8801r_priv *)(phy)->priv)
-#define phydev_dev(_dev) (&_dev->dev)
-
 /* For reference only
  *	GPIO1    <-> LED0,
  *	GPIO2    <-> LED1,
@@ -51,8 +48,8 @@ static const u16 txdelay_step = AIR_RGMII_DELAY_NOSTEP;
  ************************************************************************/
 static int
 __air_buckpbus_reg_write(struct phy_device *phydev,
-							u32 addr,
-							u32 data)
+			 u32 addr,
+			 u32 data)
 {
 	int err = 0;
 
@@ -72,7 +69,7 @@ __air_buckpbus_reg_write(struct phy_device *phydev,
 
 static u32
 __air_buckpbus_reg_read(struct phy_device *phydev,
-						u32 addr)
+			u32 addr)
 {
 	int err = 0;
 	u32 data_h, data_l, data;
@@ -96,8 +93,8 @@ __air_buckpbus_reg_read(struct phy_device *phydev,
 
 static int
 air_buckpbus_reg_write(struct phy_device *phydev,
-						u32 addr,
-						u32 data)
+		       u32 addr,
+		       u32 data)
 {
 	int err = 0;
 
@@ -107,7 +104,7 @@ air_buckpbus_reg_write(struct phy_device *phydev,
 
 static u32
 air_buckpbus_reg_read(struct phy_device *phydev,
-						u32 addr)
+		      u32 addr)
 {
 	u32 data;
 
@@ -117,9 +114,9 @@ air_buckpbus_reg_read(struct phy_device *phydev,
 
 static int
 __an8801_cl45_write(struct phy_device *phydev,
-					int devad,
-					u16 reg,
-					u16 val)
+		    int devad,
+		    u16 reg,
+		    u16 val)
 {
 	u32 addr = (AN8801_EPHY_ADDR | AN8801_CL22 | (devad << 18) | (reg << 2));
 
@@ -128,8 +125,8 @@ __an8801_cl45_write(struct phy_device *phydev,
 
 static int
 __an8801_cl45_read(struct phy_device *phydev,
-					int devad,
-					u16 reg)
+		   int devad,
+		   u16 reg)
 {
 	u32 addr = (AN8801_EPHY_ADDR | AN8801_CL22 | (devad << 18) | (reg << 2));
 
@@ -138,21 +135,21 @@ __an8801_cl45_read(struct phy_device *phydev,
 
 static int
 an8801_cl45_write(struct phy_device *phydev,
-				int devad,
-				u16 reg,
-				u16 val)
+		  int devad,
+		  u16 reg,
+		  u16 val)
 {
-    int err = 0;
+	int err = 0;
 
-    err = __an8801_cl45_write(phydev, devad, reg, val);
-    return err;
+	err = __an8801_cl45_write(phydev, devad, reg, val);
+	return err;
 }
 
 static int
 an8801_cl45_read(struct phy_device *phydev,
-					int devad,
-					u16 reg,
-					u16 *read_data)
+		 int devad,
+		 u16 reg,
+		 u16 *read_data)
 {
 	int data = 0;
 
@@ -168,10 +165,10 @@ an8801_cl45_read(struct phy_device *phydev,
 
 static int
 an8801_led_set_usr_def(struct phy_device *phydev,
-									u8 entity,
-									u16 polar,
-									u16 on_evt,
-									u16 blk_evt)
+		       u8 entity,
+		       u16 polar,
+		       u16 on_evt,
+		       u16 blk_evt)
 {
 	int err;
 
@@ -191,7 +188,7 @@ an8801_led_set_usr_def(struct phy_device *phydev,
 
 static int
 an8801_led_set_mode(struct phy_device *phydev,
-                    u8 mode)
+		    u8 mode)
 {
 	int err;
 	u16 data;
@@ -200,26 +197,25 @@ an8801_led_set_mode(struct phy_device *phydev,
 	if (err)
 		return -1;
 
-	switch (mode)
-	{
-		case AIR_LED_MODE_DISABLE:
-			data &= ~LED_BCR_EXT_CTRL;
-			data &= ~LED_BCR_MODE_MASK;
-			data |= LED_BCR_MODE_DISABLE;
-			break;
-		case AIR_LED_MODE_USER_DEFINE:
-			data |= (LED_BCR_EXT_CTRL | LED_BCR_CLK_EN);
-			break;
-		default:
-			break;
+	switch (mode) {
+	case AIR_LED_MODE_DISABLE:
+		data &= ~LED_BCR_EXT_CTRL;
+		data &= ~LED_BCR_MODE_MASK;
+		data |= LED_BCR_MODE_DISABLE;
+		break;
+	case AIR_LED_MODE_USER_DEFINE:
+		data |= (LED_BCR_EXT_CTRL | LED_BCR_CLK_EN);
+		break;
+	default:
+		break;
 	}
 	return an8801_cl45_write(phydev, 0x1f, LED_BCR, data);
 }
 
 static int
 an8801_led_set_state(struct phy_device *phydev,
-					u8 entity,
-					u8 state)
+		     u8 entity,
+		     u8 state)
 {
 	u16 data;
 	int err;
@@ -239,35 +235,32 @@ an8801_led_set_state(struct phy_device *phydev,
 static int
 an8801_led_init(struct phy_device *phydev)
 {
-	struct an8801r_priv *priv = phydev_cfg(phydev);
+	struct an8801r_priv *priv = phydev->priv;
 	struct AIR_LED_CFG_T *led_cfg = priv->led_cfg;
 	int ret, led_id;
 	u32 data;
 	u16 led_blink_cfg = priv->led_blink_cfg;
 
 	ret = an8801_cl45_write(phydev, 0x1f, LED_BLK_DUR,
-					LED_BLINK_DURATION(led_blink_cfg));
+				LED_BLINK_DURATION(led_blink_cfg));
 	if (ret)
 		return ret;
 
 	ret = an8801_cl45_write(phydev, 0x1f, LED_ON_DUR,
-					(LED_BLINK_DURATION(led_blink_cfg) >> 1));
+				(LED_BLINK_DURATION(led_blink_cfg) >> 1));
 	if (ret)
 		return ret;
 
 	ret = an8801_led_set_mode(phydev, AIR_LED_MODE_USER_DEFINE);
-	if (ret != 0)
-	{
-		printf( "LED fail to set mode, ret %d !\n", ret);
+	if (ret != 0) {
+		printf("LED fail to set mode, ret %d !\n", ret);
 		return ret;
 	}
 
-	for (led_id = AIR_LED0; led_id < MAX_LED_SIZE; led_id++)
-	{
+	for (led_id = AIR_LED0; led_id < MAX_LED_SIZE; led_id++) {
 		ret = an8801_led_set_state(phydev, led_id, led_cfg[led_id].en);
-		if (ret != 0)
-		{
-			printf("LED fail to set LED(%d) state, ret %d !\n",led_id, ret);
+		if (ret != 0) {
+			printf("LED fail to set LED(%d) state, ret %d !\n", led_id, ret);
 			return ret;
 		}
 		if (led_cfg[led_id].en == LED_ENABLE) {
@@ -287,80 +280,57 @@ an8801_led_init(struct phy_device *phydev)
 				led_cfg[led_id].pol,
 				led_cfg[led_id].on_cfg,
 				led_cfg[led_id].blk_cfg);
-			if (ret != 0)
-			{
+			if (ret != 0) {
 				printf("Fail to set LED(%d) usr def, ret %d !\n",
-						led_id, ret);
+				       led_id, ret);
 				return ret;
 			}
 		}
 	}
-	printf( "LED initialize OK !\n");
+	printf("LED initialize OK !\n");
 	return 0;
 }
 
 static int
 an8801sb_config(struct phy_device *phydev)
 {
-	u32 reg_value, phy_id, led_id;
-	struct device *dev = phydev_dev(phydev);
-	struct an8801r_priv *priv = NULL;
+	u32 reg_value, phy_id;
 	int ret;
 
 	reg_value = phy_read(phydev, MDIO_DEVAD_NONE, 2);
 	phy_id = reg_value << 16;
 	reg_value = phy_read(phydev, MDIO_DEVAD_NONE, 3);
 	phy_id |= reg_value;
-	printf( "PHY-ID = %x\n", phy_id);
+	printf("PHY-ID = %x\n", phy_id);
 	printf("phydev->interface = %d\n", phydev->interface);
 
-	if (phy_id != AN8801_PHY_ID)
-	{
+	if (phy_id != AN8801_PHY_ID) {
 		printf("AN8801SB can't be detected.\n");
 		return -1;
 	}
 
-	priv = devm_kzalloc((struct udevice *)dev, sizeof(struct an8801r_priv), 0);
-	if (!priv)
-		return -ENOMEM;
-
-	for (led_id = AIR_LED0; led_id < MAX_LED_SIZE; led_id++)
-		priv->led_cfg[led_id] = led_cfg_dlt[led_id];
-
-	priv->led_blink_cfg  = led_blink_cfg_dlt;
-	priv->rxdelay_force  = rxdelay_force;
-	priv->txdelay_force  = txdelay_force;
-	priv->rxdelay_step   = rxdelay_step;
-	priv->rxdelay_align  = rxdelay_align;
-	priv->txdelay_step   = txdelay_step;
-
-	phydev->priv = priv;
-
 	ret = an8801_cl45_write(phydev, MMD_DEV_VSPEC2, 0x600, 0x1e);
 	ret |= an8801_cl45_write(phydev, MMD_DEV_VSPEC2, 0x601, 0x02);
-	if (ret != 0)
-	{
+	if (ret != 0) {
 		printf("AN8801SB initialize fail, ret %d !\n", ret);
 		return ret;
 	}
 
 	ret |= an8801_cl45_write(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, 0x0);
-	if (ret != 0)
-	{
+	if (ret != 0) {
 		printf("AN8801SB initialize fail, ret %d !\n", ret);
 		return ret;
 	}
 
 	ret = an8801_led_init(phydev);
-	if (ret != 0)
-	{
-		printf( "LED initialize fail, ret %d !\n", ret);
+	if (ret != 0) {
+		printf("LED initialize fail, ret %d !\n", ret);
 		return ret;
 	}
 	air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_MODE, EFIFO_MODE_1000);
 	air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_CTRL, EFIFO_CTRL_1000);
 	air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_WM, EFIFO_WM_VALUE_1G);
-	printf( "AN8801SB Initialize OK ! (%s)\n", AN8801_DRIVER_VERSION);
+	printf("AN8801SB Initialize OK ! (%s)\n", AN8801_DRIVER_VERSION);
 	return 0;
 }
 
@@ -372,44 +342,32 @@ an8801sb_read_status(struct phy_device *phydev)
 
 	ret = an8801_cl45_write(phydev, MMD_DEV_VSPEC2, PHY_PRE_SPEED_REG, phydev->speed);
 	ret = air_buckpbus_reg_write(phydev, 0x10270108, 0x0a0a0404);
-	printf( "%s: SPEED %d\n", __func__, phydev->speed);
-	if (SPEED_1000 == phydev->speed)
-	{
+	printf("%s: SPEED %d\n", __func__, phydev->speed);
+	if (phydev->speed == SPEED_1000) {
 		printf("phydev->speed: 1G SPEED\n");
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_MODE, EFIFO_MODE_1000);
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_CTRL, EFIFO_CTRL_1000);
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_WM, EFIFO_WM_VALUE_1G);
-	}
-	else if ((SPEED_100 == phydev->speed) || (SPEED_10 == phydev->speed))
-	{
+	} else if ((phydev->speed == SPEED_100) || (phydev->speed == SPEED_10)) {
 		printf("phydev->speed: 100M SPEED\n");
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_MODE, EFIFO_MODE_10_100);
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_CTRL, EFIFO_CTRL_10_100);
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_WM, EFIFO_WM_VALUE_10_100);
-	}
-	else
-	{
-		printf( "Unknow speed !\n");
+	} else {
+		printf("Unknown speed !\n");
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_MODE, EFIFO_MODE_1000);
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_CTRL, EFIFO_CTRL_1000);
 		air_buckpbus_reg_write(phydev, AN8801SB_EFIFO_WM, EFIFO_WM_VALUE_1G);
 	}
 
-	if (AUTONEG_DISABLE == phydev->autoneg)
-	{
-		printf( "%s: force speed = %d\n", __func__, phydev->speed);
-		if (SPEED_1000 == phydev->speed)
-		{
+	if (phydev->autoneg == AUTONEG_DISABLE) {
+		printf("%s: force speed = %d\n", __func__, phydev->speed);
+		if (phydev->speed == SPEED_1000)
 			air_buckpbus_reg_write(phydev, AN8801SB_SGMII_AN4, 0x5801);
-		}
-		else if (SPEED_100 == phydev->speed)
-		{
+		else if (phydev->speed == SPEED_100)
 			air_buckpbus_reg_write(phydev, AN8801SB_SGMII_AN4, 0x5401);
-		}
 		else
-		{
 			air_buckpbus_reg_write(phydev, AN8801SB_SGMII_AN4, 0x5001);
-		}
 
 		reg_value = air_buckpbus_reg_read(phydev, AN8801SB_SGMII_AN0);
 		reg_value |= AN8801SB_SGMII_AN0_ANRESTART;
@@ -419,8 +377,7 @@ an8801sb_read_status(struct phy_device *phydev)
 }
 
 static int
-an8801sb_startup(
-    struct phy_device *phydev)
+an8801sb_startup(struct phy_device *phydev)
 {
 	int ret;
 
@@ -435,7 +392,7 @@ an8801sb_startup(
 
 /*-----------8801r---------------------------------------------------------------*/
 static int an8801r_led_set_usr_def(struct phy_device *phydev, u8 entity,
-                                    u16 polar, u16 on_evt, u16 blk_evt)
+				   u16 polar, u16 on_evt, u16 blk_evt)
 {
 	int err;
 
@@ -480,14 +437,14 @@ static int an8801r_led_set_mode(struct phy_device *phydev, u8 mode)
 		return -1;
 
 	switch (mode) {
-		case AIR_LED_MODE_DISABLE:
-			data &= ~LED_BCR_EXT_CTRL;
-			data &= ~LED_BCR_MODE_MASK;
-			data |= LED_BCR_MODE_DISABLE;
-			break;
-		case AIR_LED_MODE_USER_DEFINE:
-			data |= (LED_BCR_EXT_CTRL | LED_BCR_CLK_EN);
-			break;
+	case AIR_LED_MODE_DISABLE:
+		data &= ~LED_BCR_EXT_CTRL;
+		data &= ~LED_BCR_MODE_MASK;
+		data |= LED_BCR_MODE_DISABLE;
+		break;
+	case AIR_LED_MODE_USER_DEFINE:
+		data |= (LED_BCR_EXT_CTRL | LED_BCR_CLK_EN);
+		break;
 	}
 	return an8801_cl45_write(phydev, 0x1f, LED_BCR, data);
 }
@@ -553,13 +510,12 @@ static int an8801r_rgmii_txdelay(struct phy_device *phydev, u16 delay)
 	return 0;
 }
 
-
 static int an8801r_rgmii_delay_config(struct phy_device *phydev)
 {
-	struct an8801r_priv *priv = phydev_cfg(phydev);
+	struct an8801r_priv *priv = phydev->priv;
 
 	if (priv->rxdelay_force)
-		an8801r_rgmii_rxdelay(phydev, priv->rxdelay_step,priv->rxdelay_align);
+		an8801r_rgmii_rxdelay(phydev, priv->rxdelay_step, priv->rxdelay_align);
 	if (priv->txdelay_force)
 		an8801r_rgmii_txdelay(phydev, priv->txdelay_step);
 	return 0;
@@ -567,7 +523,7 @@ static int an8801r_rgmii_delay_config(struct phy_device *phydev)
 
 static int an8801r_led_init(struct phy_device *phydev)
 {
-	struct an8801r_priv *priv = phydev_cfg(phydev);
+	struct an8801r_priv *priv = phydev->priv;
 	struct AIR_LED_CFG_T *led_cfg = priv->led_cfg;
 	int ret, led_id;
 	u32 data;
@@ -587,7 +543,7 @@ static int an8801r_led_init(struct phy_device *phydev)
 		ret = an8801r_led_set_state(phydev, led_id, led_cfg[led_id].en);
 		if (ret != 0) {
 			printf("AN8801R: LED fail to set LED(%d) state, ret %d !\n",
-					led_id, ret);
+			       led_id, ret);
 			return ret;
 		}
 		if (led_cfg[led_id].en == LED_ENABLE) {
@@ -609,7 +565,7 @@ static int an8801r_led_init(struct phy_device *phydev)
 				led_cfg[led_id].blk_cfg);
 			if (ret != 0) {
 				printf("AN8801R: Fail to set LED(%d) usr def, ret %d !\n",
-						led_id, ret);
+				       led_id, ret);
 				return ret;
 			}
 		}
@@ -663,7 +619,6 @@ static int an8801r_read_status(struct phy_device *phydev)
 	return 0;
 }
 
-
 static int an8801r_startup(struct phy_device *phydev)
 {
 	int ret;
@@ -701,13 +656,38 @@ static int an8801_startup(struct phy_device *phydev)
 	return 0;
 }
 
-#if AIR_UBOOT_REVISION > 0x202303
+static int an8801_probe(struct phy_device *phydev)
+{
+	struct an8801r_priv *priv;
+	u32 led_id;
+
+	priv = devm_kzalloc(phydev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	for (led_id = AIR_LED0; led_id < MAX_LED_SIZE; led_id++)
+		priv->led_cfg[led_id] = led_cfg_dlt[led_id];
+
+	priv->led_blink_cfg  = led_blink_cfg_dlt;
+	priv->rxdelay_force  = rxdelay_force;
+	priv->txdelay_force  = txdelay_force;
+	priv->rxdelay_step   = rxdelay_step;
+	priv->rxdelay_align  = rxdelay_align;
+	priv->txdelay_step   = txdelay_step;
+
+	phydev->priv = priv;
+
+	return 0;
+}
+
+#if AIR_UBOOT_REVISION > 0x202306
 U_BOOT_PHY_DRIVER(an8801) = {
 	.name = "Airoha AN8801",
 	.uid = AN8801_PHY_ID,
 	.mask = 0x0ffffff0,
 	.features = PHY_GBIT_FEATURES,
 	.config = &an8801_config,
+	.probe = &an8801_probe,
 	.startup = &an8801_startup,
 	.shutdown = &genphy_shutdown,
 };
@@ -718,6 +698,7 @@ static struct phy_driver AIR_AN8801_driver = {
 	.mask = 0x0ffffff0,
 	.features = PHY_GBIT_FEATURES,
 	.config = &an8801_config,
+	.probe = &an8801_probe,
 	.startup = &an8801_startup,
 	.shutdown = &genphy_shutdown,
 };

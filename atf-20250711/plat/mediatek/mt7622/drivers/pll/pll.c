@@ -5,6 +5,7 @@
  */
 
 #include <drivers/delay_timer.h>
+#include <common/debug.h>
 #include <lib/mmio.h>
 #include <mcucfg.h>
 #include <mtcmos.h>
@@ -13,6 +14,45 @@
 #include "pll.h"
 
 #define aor(v, a, o)			(((v) & (a)) | (o))
+
+#ifndef MT7622_ARMPLL_FREQ_MHZ
+#define MT7622_ARMPLL_FREQ_MHZ		1350U
+#endif
+
+/*
+ * MT7622 ARMPLL frequency programming:
+ * - The target CPU frequency is selected at build time via
+ *   MT7622_ARMPLL_FREQ_MHZ.
+ * - This platform supports 50MHz steps, from 1350MHz to 1700MHz.
+ * - The ARMPLL reference clock is strap-selected (20MHz or 25MHz).
+ * - ARMPLL_CON1 stores the PCW value, and the hardware expects:
+ *
+ *     PCW = Fcpu(MHz) * 2^14 / Fref(MHz)
+ *
+ *   so we program:
+ *
+ *     ARMPLL_CON1 = CON1_PCW_CHG | PCW
+ *
+ * Examples:
+ *   - 1350MHz @ 25MHz ref -> PCW = 0x000D8000
+ *   - 1350MHz @ 20MHz ref -> PCW = 0x0010E000
+ *   - Each +50MHz step changes PCW by 0x00008000 (25MHz ref) or
+ *     0x0000A000 (20MHz ref).
+ */
+
+#define ARMPLL_PCW_FROM_MHZ(_mhz, _ref_mhz) \
+	(((uint32_t)(_mhz) * 16384U) / (uint32_t)(_ref_mhz))
+
+#if (MT7622_ARMPLL_FREQ_MHZ != 1350U) && \
+	(MT7622_ARMPLL_FREQ_MHZ != 1400U) && \
+	(MT7622_ARMPLL_FREQ_MHZ != 1450U) && \
+	(MT7622_ARMPLL_FREQ_MHZ != 1500U) && \
+	(MT7622_ARMPLL_FREQ_MHZ != 1550U) && \
+	(MT7622_ARMPLL_FREQ_MHZ != 1600U) && \
+	(MT7622_ARMPLL_FREQ_MHZ != 1650U) && \
+	(MT7622_ARMPLL_FREQ_MHZ != 1700U)
+#error "MT7622_ARMPLL_FREQ_MHZ must be one of: 1350, 1400, 1450, 1500, 1550, 1600, 1650, 1700"
+#endif
 
 #define pllc1_mempll_div_6_0		(0x52 << 17)
 #define pllc1_mempll_reserve_1		(0 << 0)
@@ -238,11 +278,19 @@ static int wait_n9_cali(void)
 void mtk_pll_init(void)
 {
 	int ret = 0;
+	uint32_t strap_input_type;
+	uint32_t armpll_ref_mhz;
 	unsigned int temp;
 
 	ret = wait_n9_cali();
 	if (ret)
 		return;
+
+	strap_input_type = mmio_read_32(RGU_STRAP_PAR) & RGU_INPUT_TYPE;
+	armpll_ref_mhz = (strap_input_type >> 1) ? 20U : 25U;
+
+	NOTICE("MT7622 build cfg: MT7622_ARMPLL_FREQ_MHZ=%u, ref=%uMHz\n",
+		MT7622_ARMPLL_FREQ_MHZ, armpll_ref_mhz);
 
 	mmio_write_32((uintptr_t)&mt7622_mcucfg->aclken_div, MCU_BUS_DIV2);
 
@@ -280,8 +328,14 @@ void mtk_pll_init(void)
 	mmio_clrbits_32(SGMIPLL_PWR_CON0, CON0_ISO_EN);
 
 	/* Set PLL frequency */
-	if (!((mmio_read_32(RGU_STRAP_PAR) & RGU_INPUT_TYPE) >> 1)) {
-		mmio_write_32(ARMPLL_CON1, 0x800D8000);		// 1350MHz
+	mmio_write_32(ARMPLL_CON1,
+		      CON1_PCW_CHG |
+		      ARMPLL_PCW_FROM_MHZ(MT7622_ARMPLL_FREQ_MHZ,
+				  armpll_ref_mhz));
+	NOTICE("MT7622 ARMPLL_CON1=0x%x (%u MHz)\n",
+		mmio_read_32(ARMPLL_CON1), MT7622_ARMPLL_FREQ_MHZ);
+	if (armpll_ref_mhz == 25U) {
+		/* 25MHz reference */
 		mmio_write_32(MAINPLL_CON1, 0x800B3333);	// 1120MHz
 		mmio_write_32(UNIVPLL_CON1, 0x80180000);	// 1200MHz
 		mmio_write_32(APLL1_CON1, 0xAF2F9873);		// 294.912MHz
@@ -291,7 +345,7 @@ void mtk_pll_init(void)
 		mmio_write_32(TRGPLL_CON1, 0x800E8000);		// 725MHz
 		mmio_write_32(SGMIPLL_CON1, 0x800D0000);	// 650MHz
 	} else {
-		mmio_write_32(ARMPLL_CON1, 0x8010E000);		// 1350MHz
+		/* 20MHz reference */
 		mmio_write_32(MAINPLL_CON1, 0x800E0000);	// 1120MHz
 		mmio_write_32(UNIVPLL_CON1, 0x801E0000);	// 1200MHz
 		mmio_write_32(APLL1_CON1, 0xBB000000);		// 294.912MHz

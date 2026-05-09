@@ -22,6 +22,10 @@ DECLARE_GLOBAL_DATA_PTR;
 
 void hw_watchdog_reset(void);
 
+void __weak schedule_hook(void)
+{
+}
+
 struct hlist_head *cyclic_get_list(void)
 {
 	/* Silence "discards 'volatile' qualifier" warning. */
@@ -111,6 +115,8 @@ void schedule(void)
 	/* The HW watchdog is not integrated into the cyclic IF (yet) */
 	if (IS_ENABLED(CONFIG_HW_WATCHDOG))
 		hw_watchdog_reset();
+
+	schedule_hook();
 
 	/*
 	 * schedule() might get called very early before the cyclic IF is

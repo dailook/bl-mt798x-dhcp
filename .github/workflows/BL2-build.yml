@@ -1,0 +1,197 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright (C) 2026 Yuzhii0718
+#
+# All rights reserved.
+#
+# This file is part of the project bl-mt798x-dhcpd
+# You may not use, copy, modify or distribute this file except in compliance with the license agreement.
+#
+name: BL2 Build
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      REPO_URL:
+        description: 'Source repository'
+        required: true
+        default: 'https://github.com/Yuzhii0718/bl-mt798x-dhcpd'
+        type: string
+      REPO_BRANCH:
+        description: 'Repository branch'
+        required: true
+        default: 'master'
+        type: string
+      ATF_VERSION: 
+        description: 'ATF versions'
+        required: true
+        default: '2025'
+        type: choice
+        options:
+          - '2024'
+          - '2025'
+          - '2026'
+      ATF_OC:
+        description: 'Include mt7981/mt7986 OC profiles'
+        required: false
+        default: false
+        type: boolean
+      pub_release:
+        description: 'Publish to GitHub Release'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  REPO_URL: ${{ github.event.inputs.REPO_URL }}
+  REPO_BRANCH: ${{ github.event.inputs.REPO_BRANCH }}
+  TZ: Asia/Shanghai
+  UPLOAD_ARTIFACT: true
+  UPLOAD_RELEASE: true
+
+jobs:
+  build-atf:
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Initialize build environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install git rename tar
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+
+          if [ "${{ github.event.inputs.pub_release }}" = "false" ]; then
+            echo "UPLOAD_RELEASE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout source
+        working-directory: /workdir
+        run: |
+          df -hT $PWD
+          git clone $REPO_URL -b $REPO_BRANCH bl-mt798x-dhcpd
+          ln -sf /workdir/bl-mt798x-dhcpd $GITHUB_WORKSPACE/bl-mt798x-dhcpd
+
+      - name: Install ATF build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo -E apt-get -qq install $(cat bl-mt798x-dhcpd/depends/ubuntu-22.04)
+
+      - name: Prepare ATF inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd bl-mt798x-dhcpd
+
+          if [ "${{ github.event.inputs.ATF_OC }}" = "true" ]; then
+            if [ -d "mt798x_atf/mt7981" ]; then
+              echo "Enable mt7981 OC profile"
+              shopt -s dotglob nullglob
+              cp -af mt798x_atf/mt7981/* mt798x_atf/ || true
+            else
+              echo "Warning: mt798x_atf/mt7981 not found, skipping"
+            fi
+            if [ -d "mt798x_atf/mt7986" ]; then
+              echo "Enable mt7986 OC profile"
+              shopt -s dotglob nullglob
+              cp -af mt798x_atf/mt7986/* mt798x_atf/ || true
+            else
+              echo "Warning: mt798x_atf/mt7986 not found, skipping"
+            fi
+          else
+            echo "OC profile not enabled (ATF_OC=false)"
+          fi
+
+      - name: Build ATF
+        id: atf
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.event.inputs.ATF_VERSION }}"
+          cd bl-mt798x-dhcpd
+          chmod +x ./build.sh
+          chmod +x ./compile_atf.sh
+          VERSION=${version} ./compile_atf.sh
+          echo "FILE_DATE=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Organize files and rename
+        id: organize
+        if: env.UPLOAD_ARTIFACT == 'true' && !cancelled()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd bl-mt798x-dhcpd
+
+          TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+
+          # Try to timestamp output_bl2 files
+          if [ -d "output_bl2" ]; then
+            rename "s/(.*)\.(.*)/\$1_${TIMESTAMP}.\$2/" output_bl2/* || true
+          fi
+
+          mkdir -p upload
+          if [ -d "output_bl2" ]; then
+            cp -r output_bl2/* upload/ || true
+          fi
+
+          # Also archive the entire mt798x_atf directory for reference if it exists
+          if [ -d "mt798x_atf" ]; then
+            tar -czf upload/mt798x_atf_${TIMESTAMP}.tar.gz mt798x_atf || true
+          fi
+
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Upload artifacts to Actions
+        uses: actions/upload-artifact@main
+        if: steps.organize.outputs.status == 'success' && !cancelled()
+        with:
+          name: ${{ env.FILE_DATE }}-bl2-preloader
+          path: |
+            bl-mt798x-dhcpd/upload/*
+
+      - name: Generate release notes
+        id: tag
+        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch release.txt
+
+          echo "- Commit: ${{ github.sha }}" >> release.txt
+          echo "- Source repo: ${{ env.REPO_URL }}" >> release.txt
+          echo "- Branch: ${{ env.REPO_BRANCH }}" >> release.txt
+          echo "- ATF version: ${{ github.event.inputs.ATF_VERSION }}" >> release.txt
+          if [ "${{ github.event.inputs.ATF_OC }}" = "true" ]; then
+            echo "- OC profile: Enabled" >> release.txt
+          else
+            echo "- OC profile: Disabled" >> release.txt
+          fi
+          echo "- Build time: ${{ env.FILE_DATE }}" >> release.txt
+
+          echo "" >> release.txt
+          echo "---" >> release.txt
+          echo "" >> release.txt
+          echo "**PLEASE SEE THE README FOR USAGE INSTRUCTIONS AND DISCLAIMERS.**" >> release.txt
+          echo "release_tag=${{ env.FILE_DATE }}-bl2-preloader" >> $GITHUB_OUTPUT
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2.1.0
+        if: steps.tag.outputs.status == 'success' && !cancelled() && env.UPLOAD_RELEASE == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: bl-mt798x-dhcpd/upload/*
+          release_name: ${{ env.FILE_DATE }}-bl2-preloader
+          name: ${{ env.FILE_DATE }}-bl2-preloader
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          body_path: release.txt

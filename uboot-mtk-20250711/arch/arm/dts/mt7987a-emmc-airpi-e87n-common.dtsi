@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+#include "mt7987a.dtsi"
+#include "mt7987-emmc.dtsi"
+#include "mt7987a-u-boot.dtsi"
+#include "mt7987-netsys-u-boot.dtsi"
+
+#include <dt-bindings/input/input.h>
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8  \
+			    earlycon=uart8250,mmio32,0x11000000 \
+			    pci=pcie_bus_perf ubi.block=0,firmware \
+			    root=/dev/fit0 rootwait";
+	};
+
+	bl2_verify {
+		bl2_compatible = "emmc";
+	};
+
+	config {
+		blink_led = "wifi";
+		system_led = "sys";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 1 GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
+		};
+
+		wps {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&pio 0 GPIO_ACTIVE_LOW>;
+			debounce-interval = <10>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led0 {
+			label = "wifi";
+			gpios = <&pio 3 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led1 {
+			label = "sys";
+			gpios = <&pio 4 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
+	pwm_led {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm_pins>;
+		status = "disabled";
+
+		led {
+			pwms = <&pwm 0 50000 0>;
+			max-brightness = <255>;
+			active-low;
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+&pio {
+	pwm_rgb_pins: pwm-rgb-pins {
+		mux {
+			/*
+			* - pwm0 1  : PWM0@PIN13
+			* - pwm1_0 :; PWM@PIN7  (share with JTAG)
+			*   pwm1_1 : PWM1@PIN43 (share with i2c0)
+			* - pwm2_0 : PWM2@PIN12 (share with PCM)
+			*   pwm2_1 : PWM2@PIN44 (share with i2c0)
+			*/
+			function = "pwm";
+			groups = "pwm0", "pwm1_0", "pwm2_0";
+		};
+	};
+
+	pwm_fan_pins: pwm-fan-pins {
+		mux {
+			/*
+			* - pwm0 1  : PWM0@PIN13
+			* - pwm1_0 :; PWM@PIN7  (share with JTAG)
+			*   pwm1_1 : PWM1@PIN43 (share with i2c0)
+			* - pwm2_0 : PWM2@PIN12 (share with PCM)
+			*   pwm2_1 : PWM2@PIN44 (share with i2c0)
+			*/
+			function = "pwm";
+			groups = "pwm1_0";
+		};
+    };
+};
+
+&fan {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_fan_pins>;
+	compatible = "pwm-fan";
+	#cooling-cells = <2>;
+	cooling-levels = <0 10 20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200 210 220 240 255>;
+	pwms = <&pwm 1 50000 0>;
+	status = "okay";
+};
+
+&eth1 {
+	status = "okay";
+	pinctrl-names = "i2p5gbe-led";
+	pinctrl-0 = <&i2p5gbe_led0_pins>;
+	phy-mode = "xgmii";
+	phy-handle = <&phy15>;
+
+	phy15: ethernet-phy@15 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <15>;
+		phy-mode = "xgmii";
+	};
+};
+
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc_pins_default>;
+	max-frequency = <48000000>;
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	cap-mmc-hw-reset;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	non-removable;
+	status = "okay";
+};

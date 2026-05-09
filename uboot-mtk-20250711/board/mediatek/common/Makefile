@@ -21,6 +21,8 @@ obj-$(CONFIG_MEDIATEK_BOOTMENU) += cmd_mtkupgrade.o cmd_mtkload.o \
 				   cmd_mtkboardboot.o cmd_mtkautoboot.o \
 				   cmd_mtkbootconf.o
 
+obj-$(CONFIG_MTK_CHAINLOAD_BL) += cmd_mtkchainload.o
+
 obj-$(CONFIG_MTK_BOOTMENU_MTD_COMMON) += bootmenu_mtd_common.o
 obj-$(CONFIG_MTK_BOOTMENU_MMC_COMMON) += bootmenu_mmc_common.o
 
@@ -42,7 +44,10 @@ obj-$(CONFIG_MTK_WGET) += mtk_wget.o cmd_wget.o
 
 endif
 
-obj-$(CONFIG_MTK_ANTI_ROLLBACK) += mtk_ar.o mtk_efuse.o
+obj-$(CONFIG_MTK_EFUSE) += mtk_efuse.o
+obj-$(CONFIG_MTK_EFUSE_CMD) += cmd_efuse.o
+
+obj-$(CONFIG_MTK_ANTI_ROLLBACK) += mtk_ar.o
 
 obj-$(CONFIG_MTK_DUAL_BOOT) += dual_boot.o
 
@@ -50,5 +55,21 @@ obj-$(CONFIG_ENABLE_NAND_NMBM) += nmbm.o
 
 obj-$(CONFIG_MTK_MISC_CUSTOMIZED) += customizations/
 
+obj-$(CONFIG_MTK_FW_ENCRYPT) += fw_dec.o
 obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_BL31) += mtk_aes_decrypt.o
 obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_OPTEE) += mtk_optee_aes_decrypt.o
+
+obj-$(CONFIG_PHY_AQUANTIA) += aquantia_fw.o aquantia_fw_load.o
+
+# Copy firmware files to build directory before assembly (only if out-of-tree build)
+$(obj)/aquantia_fw.o: copy_aquantia_fw
+
+ifdef CONFIG_XZ
+copy_aquantia_fw: $(srctree)/aquantia_fw.xz
+	@[ "$(srctree)" != "$(objtree)" ] && cp $< $(objtree)/ || true
+else
+copy_aquantia_fw: $(srctree)/aquantia_fw.cld
+	@[ "$(srctree)" != "$(objtree)" ] && cp $< $(objtree)/ || true
+endif
+
+.PHONY: copy_aquantia_fw

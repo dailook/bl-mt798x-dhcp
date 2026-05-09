@@ -9,6 +9,7 @@
 
 #include <command.h>
 #include <errno.h>
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <asm/global_data.h>
 #include <failsafe/fw_type.h>
@@ -29,6 +30,7 @@ const char *fw_to_part_name(failsafe_fw_t fw)
 		case FW_TYPE_FIP: return "fip";
 		case FW_TYPE_FW: return "fw";
 		case FW_TYPE_FACTORY: return "factory";
+		case FW_TYPE_SIMG: return "simg";
 		default: return "err";
 	}
 }
@@ -70,6 +72,17 @@ int failsafe_validate_image(const void *data, size_t size, failsafe_fw_t fw)
 	}
 
 	dpe = find_part(upgrade_parts, num_parts, fw_to_part_name(fw));
+	if (!dpe && fw == FW_TYPE_SIMG) {
+		static const char * const simg_abbrs[] = {
+			"simg",
+			"simg-emmc",
+			"simg-snor",
+		};
+		u32 i;
+
+		for (i = 0; i < ARRAY_SIZE(simg_abbrs) && !dpe; i++)
+			dpe = find_part(upgrade_parts, num_parts, simg_abbrs[i]);
+	}
 	if (!dpe)
 		return -ENODEV;
 
@@ -93,6 +106,17 @@ int failsafe_write_image(const void *data, size_t size, failsafe_fw_t fw)
 	}
 
 	dpe = find_part(upgrade_parts, num_parts, fw_to_part_name(fw));
+	if (!dpe && fw == FW_TYPE_SIMG) {
+		static const char * const simg_abbrs[] = {
+			"simg",
+			"simg-emmc",
+			"simg-snor",
+		};
+		u32 i;
+
+		for (i = 0; i < ARRAY_SIZE(simg_abbrs) && !dpe; i++)
+			dpe = find_part(upgrade_parts, num_parts, simg_abbrs[i]);
+	}
 	if (!dpe)
 		return -ENODEV;
 

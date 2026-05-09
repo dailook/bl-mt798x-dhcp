@@ -10,7 +10,9 @@
 #include <abuf.h>
 #include <env.h>
 #include <log.h>
+#include <malloc.h>
 #include <mapmem.h>
+#include <limits.h>
 #include <net.h>
 #include <rng.h>
 #include <stdio_dev.h>
@@ -336,6 +338,37 @@ __weak const char *board_fdt_chosen_bootargs(const struct fdt_property *fdt_ba)
 	return env_get("bootargs");
 }
 
+#ifndef CONFIG_FDT_NO_BOOTARGS_OVERRIDE
+static int bootargs_has_token(const char *base, const char *token,
+			      size_t token_len)
+{
+	const char *p;
+
+	if (!base || !*base || token_len == 0)
+		return 0;
+
+	p = base;
+	while (*p) {
+		const char *start;
+		size_t len;
+
+		while (*p && isspace((unsigned char)*p))
+			p++;
+		if (!*p)
+			break;
+
+		start = p;
+		while (*p && !isspace((unsigned char)*p))
+			p++;
+		len = p - start;
+		if (len == token_len && !strncmp(start, token, token_len))
+			return 1;
+	}
+
+	return 0;
+}
+#endif
+
 int fdt_chosen(void *fdt)
 {
 	struct abuf buf = {};
@@ -343,6 +376,13 @@ int fdt_chosen(void *fdt)
 	int   err;
 #ifndef CONFIG_FDT_NO_BOOTARGS_OVERRIDE
 	const char *str;		/* used to set string properties */
+	const struct fdt_property *append_prop;
+	const char *append_str = NULL;
+	char *append_buf = NULL;
+	char *append_filtered = NULL;
+	char *merged = NULL;
+	size_t base_len = 0;
+	size_t append_len = 0;
 #endif
 
 	err = fdt_check_header(fdt);
@@ -379,6 +419,83 @@ int fdt_chosen(void *fdt)
 #ifndef CONFIG_FDT_NO_BOOTARGS_OVERRIDE
 	str = board_fdt_chosen_bootargs(fdt_get_property(fdt, nodeoffset,
 							 "bootargs", NULL));
+	append_prop = fdt_get_property(fdt, nodeoffset, "bootargs-append", NULL);
+	if (append_prop && append_prop->len > 0) {
+		append_buf = malloc(append_prop->len + 1);
+		if (!append_buf) {
+			printf("WARNING: malloc failed, ignore bootargs-append\n");
+		} else {
+			memcpy(append_buf, append_prop->data, append_prop->len);
+			append_buf[append_prop->len] = '\0';
+			append_len = strlen(append_buf);
+			if (append_len == 0)
+				append_str = NULL;
+			else
+				append_str = append_buf;
+		}
+	}
+
+	if (str)
+		base_len = strlen(str);
+
+	if (append_str) {
+		append_filtered = malloc(append_len + 1);
+		if (!append_filtered) {
+			printf("WARNING: malloc failed, ignore bootargs-append\n");
+			append_str = NULL;
+		} else {
+			const char *p = append_str;
+			size_t filtered_len = 0;
+
+			while (*p) {
+				const char *tok;
+				size_t tok_len;
+
+				while (*p && isspace((unsigned char)*p))
+					p++;
+				if (!*p)
+					break;
+
+				tok = p;
+				while (*p && !isspace((unsigned char)*p))
+					p++;
+				tok_len = p - tok;
+				if (!bootargs_has_token(str, tok, tok_len)) {
+					if (filtered_len > 0)
+						append_filtered[filtered_len++] = ' ';
+					memcpy(append_filtered + filtered_len, tok, tok_len);
+					filtered_len += tok_len;
+				}
+			}
+
+			if (filtered_len == 0) {
+				free(append_filtered);
+				append_filtered = NULL;
+				append_str = NULL;
+			} else {
+				append_filtered[filtered_len] = '\0';
+				append_str = append_filtered;
+				append_len = filtered_len;
+			}
+		}
+	}
+
+	if (append_str) {
+		if (base_len > SIZE_MAX - append_len - 1) {
+			printf("WARNING: bootargs too long, ignore bootargs-append\n");
+		} else {
+			merged = malloc(base_len + append_len + 1);
+			if (!merged) {
+				printf("WARNING: malloc failed, ignore bootargs-append\n");
+			} else {
+				if (base_len)
+					memcpy(merged, str, base_len);
+				memcpy(merged + base_len, append_str, append_len);
+				merged[base_len + append_len] = '\0';
+				str = merged;
+			}
+		}
+	}
 
 	if (str) {
 		err = fdt_setprop(fdt, nodeoffset, "bootargs", str,
@@ -386,9 +503,21 @@ int fdt_chosen(void *fdt)
 		if (err < 0) {
 			printf("WARNING: could not set bootargs %s.\n",
 			       fdt_strerror(err));
+			if (append_buf)
+				free(append_buf);
+			if (append_filtered)
+				free(append_filtered);
+			if (merged)
+				free(merged);
 			return err;
 		}
 	}
+	if (append_buf)
+		free(append_buf);
+	if (append_filtered)
+		free(append_filtered);
+	if (merged)
+		free(merged);
 #endif
 
 	/* add u-boot version */

@@ -692,19 +692,13 @@ static void initcall_run_r(void)
 	INITCALL(serial_initialize);
 	INITCALL(initr_announce);
 	INITCALL(dm_announce);
-#if CONFIG_IS_ENABLED(WDT)
-	INITCALL(initr_watchdog);
-#endif
-	WATCHDOG_RESET();
 	INITCALL(arch_initr_trap);
 #if CONFIG_IS_ENABLED(BOARD_EARLY_INIT_R)
 	INITCALL(board_early_init_r);
 #endif
-	WATCHDOG_RESET();
 #if CONFIG_IS_ENABLED(POST)
 	INITCALL(post_output_backlog);
 #endif
-	WATCHDOG_RESET();
 #if CONFIG_IS_ENABLED(PCI_INIT_R) && CONFIG_IS_ENABLED(SYS_EARLY_PCI_INIT)
 	/*
 	 * Do early PCI configuration _before_ the flash gets initialised,
@@ -719,7 +713,6 @@ static void initcall_run_r(void)
 #if CONFIG_IS_ENABLED(MTD_NOR_FLASH)
 	INITCALL(initr_flash);
 #endif
-	WATCHDOG_RESET();
 #if CONFIG_IS_ENABLED(PPC) || CONFIG_IS_ENABLED(M68K) || CONFIG_IS_ENABLED(X86)
 	/* initialize higher level parts of CPU like time base and timers */
 	INITCALL(cpu_init_r);
@@ -745,6 +738,10 @@ static void initcall_run_r(void)
 #if CONFIG_IS_ENABLED(PVBLOCK)
 	INITCALL(initr_pvblock);
 #endif
+#if CONFIG_IS_ENABLED(WDT)
+	INITCALL(initr_watchdog);
+#endif
+	WATCHDOG_RESET();
 	INITCALL(initr_env);
 #if CONFIG_IS_ENABLED(SYS_MALLOC_BOOTPARAMS)
 	INITCALL(initr_malloc_bootparams);

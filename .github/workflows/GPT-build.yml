@@ -1,0 +1,172 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright (C) 2026 Yuzhii0718
+#
+# All rights reserved.
+#
+# This file is part of the project bl-mt798x-dhcpd
+# You may not use, copy, modify or distribute this file except in compliance with the license agreement.
+#
+name: GPT Build
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      REPO_URL:
+        description: 'Source repository'
+        required: true
+        default: 'https://github.com/Yuzhii0718/bl-mt798x-dhcpd'
+        type: string
+      REPO_BRANCH:
+        description: 'Repository branch'
+        required: true
+        default: 'master'
+        type: string
+      GPT_TEMPLATE:
+        description: 'Include template partition table'
+        required: false
+        default: false
+        type: boolean
+      pub_release:
+        description: 'Publish to GitHub Release'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  REPO_URL: ${{ github.event.inputs.REPO_URL }}
+  REPO_BRANCH: ${{ github.event.inputs.REPO_BRANCH }}
+  TZ: Asia/Shanghai
+  UPLOAD_ARTIFACT: true
+  UPLOAD_RELEASE: true
+
+jobs:
+  build-gpt:
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Initialize build environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install git rename python2.7 python2.7-dev python3
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+
+          if [ "${{ github.event.inputs.pub_release }}" = "false" ]; then
+            echo "UPLOAD_RELEASE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout source
+        working-directory: /workdir
+        run: |
+          df -hT $PWD
+          git clone $REPO_URL -b $REPO_BRANCH bl-mt798x-dhcpd
+          ln -sf /workdir/bl-mt798x-dhcpd $GITHUB_WORKSPACE/bl-mt798x-dhcpd
+
+      - name: Prepare GPT inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd bl-mt798x-dhcpd
+
+          if [ "${{ github.event.inputs.GPT_TEMPLATE }}" = "true" ]; then
+            if [ -d "mt798x_gpt/template" ]; then
+              echo "Enable template partition table: copy mt798x_gpt/template/* -> mt798x_gpt/"
+              shopt -s dotglob nullglob
+              cp -af mt798x_gpt/template/* mt798x_gpt/ || true
+            else
+              echo "Warning: mt798x_gpt/template not found, skipping template copy"
+            fi
+          else
+            echo "Template partition table not enabled (GPT_TEMPLATE=false)"
+          fi
+
+      - name: Build GPT
+        id: gpt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd bl-mt798x-dhcpd
+          chmod +x ./generate_gpt.sh
+          ./generate_gpt.sh
+          echo "FILE_DATE=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Organize files and rename
+        id: organize
+        if: env.UPLOAD_ARTIFACT == 'true' && !cancelled()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd bl-mt798x-dhcpd
+
+          TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+
+          # Try to timestamp output_gpt files
+          if [ -d "output_gpt" ]; then
+            rename "s/(.*)\.(.*)/\$1_${TIMESTAMP}.\$2/" output_gpt/* || true
+          fi
+
+          mkdir -p upload
+          if [ -d "output_gpt" ]; then
+            cp -r output_gpt/* upload/ || true
+          fi
+
+          # Also try to archive the entire mt798x_gpt directory if it exists, for users who want to see the full layout
+          if [ -d "mt798x_gpt" ]; then
+            tar -czf upload/mt798x_gpt_${TIMESTAMP}.tar.gz mt798x_gpt || true
+          fi
+
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Upload artifacts to Actions
+        uses: actions/upload-artifact@main
+        if: steps.organize.outputs.status == 'success' && !cancelled()
+        with:
+          name: ${{ env.FILE_DATE }}-gpt-partition-table
+          path: |
+            bl-mt798x-dhcpd/upload/*
+
+      - name: Generate release notes
+        id: tag
+        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch release.txt
+
+          echo "- Commit: ${{ github.sha }}" >> release.txt
+          echo "- Source repo: ${{ env.REPO_URL }}" >> release.txt
+          echo "- Branch: ${{ env.REPO_BRANCH }}" >> release.txt
+          if [ "${{ github.event.inputs.GPT_TEMPLATE }}" = "true" ]; then
+            echo "- Template partition table: Enabled" >> release.txt
+          else
+            echo "- Template partition table: Disabled" >> release.txt
+          fi
+          echo "- Build time: ${{ env.FILE_DATE }}" >> release.txt
+
+          echo "" >> release.txt
+          echo "---" >> release.txt
+          echo "" >> release.txt
+          echo "**PLEASE SEE THE README FOR USAGE INSTRUCTIONS AND DISCLAIMERS.**" >> release.txt
+          echo "release_tag=${{ env.FILE_DATE }}-gpt-partition-table" >> $GITHUB_OUTPUT
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2.1.0
+        if: steps.tag.outputs.status == 'success' && !cancelled() && env.UPLOAD_RELEASE == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: bl-mt798x-dhcpd/upload/*
+          release_name: ${{ env.FILE_DATE }}-gpt-partition-table
+          name: ${{ env.FILE_DATE }}-gpt-partition-table
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          body_path: release.txt

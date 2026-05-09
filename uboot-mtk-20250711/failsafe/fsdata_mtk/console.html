@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+	<title>Web Console</title>
+	<link rel="stylesheet" href="/style.css">
+	<script src="/main.js"></script>
+</head>
+
+<body onload="consoleInitOld()">
+	<div id="main">
+		<div id="banner">MediaTek U-Boot System Recovery Mode</div>
+		<h1>WEB CONSOLE</h1>
+		<p>
+			Run <strong>U-Boot commands</strong> directly in your browser.<br>
+			Output is streamed by polling (no WebSocket). Treat this as <strong>root access</strong>.
+		</p>
+		<pre id="console_out" class="console-output"></pre>
+		<p>
+			Token (optional): <input id="console_token" type="password">
+			<input class="button" type="button" value="Clear" onclick="consoleClearOld()">
+		</p>
+		<p>
+			Command: <input id="console_cmd" type="text" placeholder="help; printenv; mtd list">
+			<input class="button" type="button" value="Send" onclick="consoleSendOld()">
+		</p>
+		<div id="console_status"></div>
+	</div>
+</body>
+
+</html>

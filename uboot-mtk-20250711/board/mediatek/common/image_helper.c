@@ -397,54 +397,54 @@ static int itb_external_image_data_info(const void *fit, int cfg_noffset,
 	return 0;
 }
 
-static int parse_image_itb(const void *fit, size_t size, u32 blocksize,
-			   struct owrt_image_info *ii)
-{
-	int ret, cfg_noffset;
-	size_t image_size;
+// static int parse_image_itb(const void *fit, size_t size, u32 blocksize,
+// 			   struct owrt_image_info *ii)
+// {
+// 	int ret, cfg_noffset;
+// 	size_t image_size;
 
-	image_size = fit_get_totalsize(fit);
-	if (!image_size || image_size > size) {
-		if (image_size) {
-			printf("itb image size is invalid (%lu >= %zu)\n",
-			       image_size, size);
-		}
+// 	image_size = fit_get_totalsize(fit);
+// 	if (!image_size || image_size > size) {
+// 		if (image_size) {
+// 			printf("itb image size is invalid (%lu >= %zu)\n",
+// 			       image_size, size);
+// 		}
 
-		return -1;
-	}
+// 		return -1;
+// 	}
 
-	/* Find default configuration node */
-	cfg_noffset = fit_conf_get_node(fit, NULL);
-	if (cfg_noffset < 0) {
-		printf("itb configuration node not found\n");
-		return -1;
-	}
+// 	/* Find default configuration node */
+// 	cfg_noffset = fit_conf_get_node(fit, NULL);
+// 	if (cfg_noffset < 0) {
+// 		printf("itb configuration node not found\n");
+// 		return -1;
+// 	}
 
-	debug("itb configuration node = %u\n", cfg_noffset);
+// 	debug("itb configuration node = %u\n", cfg_noffset);
 
-	ret = itb_external_image_data_info(fit, cfg_noffset, FIT_KERNEL_PROP,
-					   NULL, NULL);
-	if (ret)
-		return ret;
+// 	ret = itb_external_image_data_info(fit, cfg_noffset, FIT_KERNEL_PROP,
+// 					   NULL, NULL);
+// 	if (ret)
+// 		return ret;
 
-	ret = itb_external_image_data_info(fit, cfg_noffset, FIT_LOADABLE_PROP,
-					   &ii->padding_size, &ii->rootfs_size);
-	if (ret) {
-		printf("External %s not found, try to find external %s\n",
-		       FIT_LOADABLE_PROP, FIT_RAMDISK_PROP);
-		ret = itb_external_image_data_info(fit, cfg_noffset, FIT_RAMDISK_PROP,
-						   &ii->padding_size, &ii->rootfs_size);
-		if (ret)
-			return ret;
-	}
+// 	ret = itb_external_image_data_info(fit, cfg_noffset, FIT_LOADABLE_PROP,
+// 					   &ii->padding_size, &ii->rootfs_size);
+// 	if (ret) {
+// 		printf("External %s not found, try to find external %s\n",
+// 		       FIT_LOADABLE_PROP, FIT_RAMDISK_PROP);
+// 		ret = itb_external_image_data_info(fit, cfg_noffset, FIT_RAMDISK_PROP,
+// 						   &ii->padding_size, &ii->rootfs_size);
+// 		if (ret)
+// 			return ret;
+// 	}
 
-	ii->type = IMAGE_ITB;
-	ii->header_type = HEADER_FIT;
-	ii->kernel_size = image_size; /* kernel size = valid itb image size */
-	ii->marker_size = size - image_size;
+// 	ii->type = IMAGE_ITB;
+// 	ii->header_type = HEADER_FIT;
+// 	ii->kernel_size = image_size; /* kernel size = valid itb image size */
+// 	ii->marker_size = size - image_size;
 
-	return 0;
-}
+// 	return 0;
+// }
 
 bool fit_image_check_kernel_conf(const void *fit, const char *conf)
 {

@@ -1,239 +1,443 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2023 Freescale Semiconductor, Inc.
- * author SkyLake.Huang
+ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
+ *
+ * Author: Sky Huang <SkyLake.Huang@mediatek.com>
+ * Author: Weijie Gao <weijie.gao@mediatek.com>
  */
 #include <asm/io.h>
 #include <dm/device_compat.h>
-#include <dm/devres.h>
 #include <dm/of_access.h>
-#include <dm/ofnode.h>
 #include <dm/pinctrl.h>
+#include <dm/ofnode.h>
+#include <fw_loader.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <phy.h>
-#include "mt7988_i2p5ge_phy_pmb.h"
-#include "mt7987_i2p5ge_phy_pmb.h"
-#include "mt7987_i2p5ge_phy_DSPBitTb.h"
 #include "mtk.h"
 
-#define MD32_EN			BIT(0)
+#define MTK_2P5GPHY_ID_MT7987			0x00339c91
+#define MTK_2P5GPHY_ID_MT7988			0x00339c11
 
-#define MTK_2P5GPHY_ID_MT7987	(0x00339c91)
-#define MTK_2P5GPHY_ID_MT7988	(0x00339c11)
+#define PBUS_BASE				0x0f000000
+#define PBUS_SIZE				0x1f0024
 
-#define MT7987_2P5GE_PMB_FW_SIZE	(0x18000)
-#define MT7987_2P5GE_DSPBITTB_SIZE	(0x7000)
+#define MTK_2P5GPHY_PMD_REG			0x010000
+#define DO_NOT_RESET				(MTK_2P5GPHY_PMD_REG + 0x28)
+#define   DO_NOT_RESET_XBZ			BIT(0)
+#define   DO_NOT_RESET_PMA			BIT(3)
+#define   DO_NOT_RESET_RX			BIT(5)
+#define FNPLL_PWR_CTRL1				(MTK_2P5GPHY_PMD_REG + 0x208)
+#define   RG_SPEED_MASK				GENMASK(3, 0)
+#define   RG_SPEED_2500				BIT(3)
+#define   RG_SPEED_100				BIT(0)
+#define FNPLL_PWR_CTRL_STATUS			(MTK_2P5GPHY_PMD_REG + 0x20c)
+#define   RG_STABLE_MASK			GENMASK(3, 0)
+#define   RG_SPEED_2500_STABLE			BIT(3)
+#define   RG_SPEED_100_STABLE			BIT(0)
 
-#define MT7988_2P5GE_PMB_FW_SIZE	(0x20000)
-#define MT7988_2P5GE_PMB_FW_BASE	(0x0f100000)
-#define MT7988_2P5GE_PMB_FW_LEN		(0x20000)
+#define MTK_2P5GPHY_XBZ_PCS			0x030000
+#define PHY_CTRL_CONFIG				(MTK_2P5GPHY_XBZ_PCS + 0x200)
+#define PMU_WP					(MTK_2P5GPHY_XBZ_PCS + 0x800)
+#define   WRITE_PROTECT_KEY			0xCAFEF00D
+#define PMU_PMA_AUTO_CFG			(MTK_2P5GPHY_XBZ_PCS + 0x820)
+#define   POWER_ON_AUTO_MODE			BIT(16)
+#define   PMU_AUTO_MODE_EN			BIT(0)
+#define PMU_PMA_STATUS				(MTK_2P5GPHY_XBZ_PCS + 0x840)
+#define   CLK_IS_DISABLED			BIT(3)
 
-#define MTK_2P5GPHY_PMD_REG_BASE	(0x0f010000)
-#define MTK_2P5GPHY_PMD_REG_LEN		(0x210)
-#define DO_NOT_RESET			(0x28)
-#define   DO_NOT_RESET_XBZ		BIT(0)
-#define   DO_NOT_RESET_PMA		BIT(3)
-#define   DO_NOT_RESET_RX		BIT(5)
-#define FNPLL_PWR_CTRL1			(0x208)
-#define   RG_SPEED_MASK			GENMASK(3, 0)
-#define   RG_SPEED_2500			BIT(3)
-#define   RG_SPEED_100			BIT(0)
-#define FNPLL_PWR_CTRL_STATUS		(0x20c)
-#define   RG_STABLE_MASK		GENMASK(3, 0)
-#define   RG_SPEED_2500_STABLE		BIT(3)
-#define   RG_SPEED_100_STABLE		BIT(0)
+#define MTK_2P5GPHY_XBZ_PMA_RX			0x080000
+#define SMEM_WDAT0				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5000)
+#define SMEM_WDAT1				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5004)
+#define SMEM_WDAT2				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5008)
+#define SMEM_WDAT3				(MTK_2P5GPHY_XBZ_PMA_RX + 0x500c)
+#define SMEM_CTRL				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5024)
+#define   SMEM_HW_RDATA_ZERO			BIT(24)
+#define SMEM_ADDR_REF_ADDR			(MTK_2P5GPHY_XBZ_PMA_RX + 0x502c)
+#define CM_CTRL_P01				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5100)
+#define CM_CTRL_P23				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5124)
+#define DM_CTRL_P01				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5200)
+#define DM_CTRL_P23				(MTK_2P5GPHY_XBZ_PMA_RX + 0x5224)
 
-#define MTK_2P5GPHY_XBZ_PCS_REG_BASE	(0x0f030000)
-#define MTK_2P5GPHY_XBZ_PCS_REG_LEN	(0x844)
-#define PHY_CTRL_CONFIG			(0x200)
-#define PMU_WP				(0x800)
-#define   WRITE_PROTECT_KEY		(0xCAFEF00D)
-#define PMU_PMA_AUTO_CFG		(0x820)
-#define   POWER_ON_AUTO_MODE		BIT(16)
-#define   PMU_AUTO_MODE_EN		BIT(0)
-#define PMU_PMA_STATUS			(0x840)
-#define   CLK_IS_DISABLED		BIT(3)
+#define MTK_2P5GPHY_CHIP_SCU			0x0cf800
+#define SYS_SW_RESET				(MTK_2P5GPHY_CHIP_SCU + 0x128)
+#define   RESET_RST_CNT				BIT(0)
 
-#define MTK_2P5GPHY_XBZ_PMA_RX_BASE	(0x0f080000)
-#define MTK_2P5GPHY_XBZ_PMA_RX_LEN	(0x5228)
-#define SMEM_WDAT0			(0x5000)
-#define SMEM_WDAT1			(0x5004)
-#define SMEM_WDAT2			(0x5008)
-#define SMEM_WDAT3			(0x500c)
-#define SMEM_CTRL			(0x5024)
-#define   SMEM_HW_RDATA_ZERO		BIT(24)
-#define SMEM_ADDR_REF_ADDR		(0x502c)
-#define CM_CTRL_P01			(0x5100)
-#define CM_CTRL_P23			(0x5124)
-#define DM_CTRL_P01			(0x5200)
-#define DM_CTRL_P23			(0x5224)
+#define MTK_2P5GPHY_MCU_CSR			0x0f0000
+#define MD32_EN_CFG				(MTK_2P5GPHY_MCU_CSR + 0x18)
+#define   MD32_EN				BIT(0)
 
-#define MTK_2P5GPHY_CHIP_SCU_BASE	(0x0f0cf800)
-#define MTK_2P5GPHY_CHIP_SCU_LEN	(0x12c)
-#define SYS_SW_RESET			(0x128)
-#define   RESET_RST_CNT			BIT(0)
+#define MTK_2P5GPHY_PMB_FW			0x100000
 
-#define MTK_2P5GPHY_MCU_CSR_BASE	(0x0f0f0000)
-#define MTK_2P5GPHY_MCU_CSR_LEN		(0x20)
-#define MD32_EN_CFG			(0x18)
-#define   MD32_EN			BIT(0)
+#define MTK_2P5GPHY_FCM_BASE			0x0e0000
+#define FC_LWM					(MTK_2P5GPHY_FCM_BASE + 0x14)
+#define   TX_FC_LWM_MASK			GENMASK(31, 16)
+#define MIN_IPG_NUM				(MTK_2P5GPHY_FCM_BASE + 0x2c)
+#define   LS_MIN_IPG_NUM_MASK			GENMASK(7, 0)
+#define FIFO_CTRL				(MTK_2P5GPHY_FCM_BASE + 0x40)
+#define   TX_SFIFO_IDLE_CNT_MASK		GENMASK(31, 28)
+#define   TX_SFIFO_DEL_IPG_WM_MASK		GENMASK(23, 16)
 
-#define MTK_2P5GPHY_PMB_FW_BASE		(0x0f100000)
+#define MTK_2P5GPHY_APB_BASE			0x11c30000
+#define MTK_2P5GPHY_APB_SIZE			0x9c
+#define SW_RESET				0x94
+#define   MD32_RESTART_EN_CLEAR			BIT(9)
 
-#define MTK_2P5GPHY_APB_BASE		(0x11c30000)
-#define MTK_2P5GPHY_APB_LEN		(0x9c)
-#define SW_RESET			(0x94)
-#define   MD32_RESTART_EN_CLEAR		BIT(9)
+/* Registers on CL22 page 0 */
+#define PHY_AUX_CTRL_STATUS			0x1d
+#define   PHY_AUX_DPX_MASK			GENMASK(5, 5)
+#define   PHY_AUX_SPEED_MASK			GENMASK(4, 2)
 
-#define BASE100T_STATUS_EXTEND		(0x10)
-#define BASE1000T_STATUS_EXTEND		(0x11)
-#define EXTEND_CTRL_AND_STATUS		(0x16)
-
-#define PHY_AUX_CTRL_STATUS		(0x1d)
-#define   PHY_AUX_DPX_MASK		GENMASK(5, 5)
-#define   PHY_AUX_SPEED_MASK		GENMASK(4, 2)
+enum {
+	PHY_AUX_SPD_10 = 0,
+	PHY_AUX_SPD_100,
+	PHY_AUX_SPD_1000,
+	PHY_AUX_SPD_2500,
+};
 
 /* Registers on MDIO_MMD_VEND1 */
-#define MTK_PHY_LINK_STATUS_RELATED		(0x147)
+#define MTK_PHY_LINK_STATUS_RELATED		0x147
 #define   MTK_PHY_BYPASS_LINK_STATUS_OK		BIT(4)
 #define   MTK_PHY_FORCE_LINK_STATUS_HCD		BIT(3)
 
-#define MTK_PHY_AN_FORCE_SPEED_REG		(0x313)
+#define MTK_PHY_AN_FORCE_SPEED_REG		0x313
 #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_EN	BIT(7)
 #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK	GENMASK(6, 0)
 
-#define MTK_PHY_LPI_PCS_DSP_CTRL		(0x121)
+#define MTK_PHY_LPI_PCS_DSP_CTRL		0x121
 #define   MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK	GENMASK(12, 8)
+
+#define MTK_PHY_PMA_PMD_SPEED_ABILITY		0x300
+#define   CAP_100X_HDX				BIT(14)
+#define   CAP_10T_HDX				BIT(12)
+
+/* Registers on MDIO_MMD_VEND2 */
+#define MT7987_OPTIONS				0x110
+#define   NORMAL_RETRAIN_DISABLE		BIT(0)
 
 /* Registers on Token Ring debug nodes */
 /* ch_addr = 0x0, node_addr = 0xf, data_addr = 0x3c */
 #define AUTO_NP_10XEN				BIT(6)
 
-struct mtk_i2p5ge_phy_priv {
-	bool fw_loaded;
+/* Firmware file size */
+#define MT7987_2P5GE_PMB_FW_SIZE		0x18000
+#define MT7988_2P5GE_PMB_FW_SIZE		0x20000
+
+#define MT7987_2P5GE_DSPBITTB_SIZE		0x7000
+
+struct mtk_i2p5ge_fw_info {
+	u8 datecode[4];
+	u8 plat[2];
+	u8 ver[2];
 };
 
-static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
+struct mtk_i2p5ge_priv {
+	void __iomem *reg_base;
+	bool half;
+	bool gbe_min_ipg_11_bytes;
+	bool retrain;
+	bool auto_downshift;
+};
+
+static inline void pbus_write(struct mtk_i2p5ge_priv *priv, u32 offset,
+			      u32 val)
 {
-	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
-	struct udevice *dev = phydev->dev;
-	void __iomem *xbz_pcs_reg_base;
-	void __iomem *xbz_pma_rx_base;
-	void __iomem *chip_scu_base;
-	void __iomem *pmd_reg_base;
-	void __iomem *mcu_csr_base;
+	writel(val, priv->reg_base + offset);
+}
+
+static inline void pbus_rmw(struct mtk_i2p5ge_priv *priv, u32 offset, u32 clr,
+			    u32 set)
+{
+	clrsetbits_le32(priv->reg_base + offset, clr, set);
+}
+
+static int mt798x_i2p5ge_download_fw(struct mtk_i2p5ge_priv *priv,
+				     size_t fwsize, const void *fwdata)
+{
+	u32 __iomem *fwmem = priv->reg_base + MTK_2P5GPHY_PMB_FW;
+	const u32 *fw;
+	u32 i;
+
+	/* Assume fw data is 4-byte aligned */
+	fw = fwdata;
+
+	for (i = 0; i < (fwsize >> 2); i++)
+		writel(fw[i], &fwmem[i]);
+
+	return 0;
+}
+
+static int mt798x_i2p5ge_phy_probe(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_priv *priv;
+
+	priv = malloc(sizeof(*priv));
+	if (!priv)
+		return -ENOMEM;
+
+	priv->reg_base = ioremap(PBUS_BASE, PBUS_SIZE);
+	if (!priv->reg_base) {
+		free(priv);
+		return -ENODEV;
+	}
+
+	/* Initialize with default values */
+	priv->half = false;
+	priv->gbe_min_ipg_11_bytes = false;
+	priv->retrain = true;
+	priv->auto_downshift = true;
+
+	phydev->priv = priv;
+
+	return 0;
+}
+
+static int mt798x_i2p5ge_phy_config(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_priv *priv = phydev->priv;
+	ofnode node = phydev->node;
+
+	if (ofnode_valid(node)) {
+		priv->half = ofnode_read_bool(node, "half-en");
+		priv->gbe_min_ipg_11_bytes = ofnode_read_bool(node, "gbe-min-ipg-11-bytes-en");
+		priv->retrain = !ofnode_read_bool(node, "retrain-dis");
+		priv->auto_downshift = !ofnode_read_bool(node, "auto-downshift-dis");
+	}
+
+	/* Setup LED */
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			 MTK_PHY_LED_ON_LINK10 |
+			 MTK_PHY_LED_ON_LINK100 |
+			 MTK_PHY_LED_ON_LINK1000 |
+			 MTK_PHY_LED_ON_LINK2500);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED1_ON_CTRL,
+			 MTK_PHY_LED_ON_FDX | MTK_PHY_LED_ON_HDX);
+
+	/* Switch pinctrl after setting polarity to avoid bogus blinking */
+	pinctrl_select_state(phydev->dev, "i2p5gbe-led");
+
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LPI_PCS_DSP_CTRL,
+		       MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK, 0);
+
+	/* Enable 16-bit next page exchange bit if 1000-BT isn't advertising */
+	mtk_tr_modify(phydev, 0x0, 0xf, 0x3c, AUTO_NP_10XEN,
+		      FIELD_PREP(AUTO_NP_10XEN, 0x1));
+
+	/* Set HW auto downshift according to dts */
+	if (priv->auto_downshift) {
+		mtk_phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_1);
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 MTK_PHY_AUX_CTRL_AND_STATUS,
+				 MTK_PHY_ENABLE_DOWNSHIFT);
+		mtk_phy_restore_page(phydev);
+	} else {
+		mtk_phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_1);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_AUX_CTRL_AND_STATUS,
+				   MTK_PHY_ENABLE_DOWNSHIFT);
+		mtk_phy_restore_page(phydev);
+	}
+
+	/* Configure parallel detction functionality */
+	if (priv->half) {
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 MTK_PHY_PMA_PMD_SPEED_ABILITY,
+				 CAP_10T_HDX | CAP_100X_HDX);
+
+		if (phydev->advertising & ADVERTISED_10baseT_Full) {
+			phy_set_bits_mmd(phydev, MDIO_DEVAD_NONE,
+					 MII_ADVERTISE, ADVERTISE_10HALF);
+		} else {
+			phy_clear_bits_mmd(phydev, MDIO_DEVAD_NONE,
+					   MII_ADVERTISE, ADVERTISE_10HALF);
+		}
+
+		if (phydev->advertising & ADVERTISED_100baseT_Full) {
+			phy_set_bits_mmd(phydev, MDIO_DEVAD_NONE,
+					 MII_ADVERTISE, ADVERTISE_100HALF);
+		} else {
+			phy_clear_bits_mmd(phydev, MDIO_DEVAD_NONE,
+					   MII_ADVERTISE, ADVERTISE_100HALF);
+		}
+	} else {
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_PMA_PMD_SPEED_ABILITY,
+				   CAP_10T_HDX | CAP_100X_HDX);
+		phy_clear_bits_mmd(phydev, MDIO_DEVAD_NONE,
+				   MII_ADVERTISE,
+				   ADVERTISE_10HALF | ADVERTISE_100HALF);
+	}
+
+	return 0;
+}
+
+static void mt798x_i2p5ge_print_fw_info(const void *fwdata, size_t fwsize)
+{
+	const struct mtk_i2p5ge_fw_info *info;
+	u8 ver_minor, ver_patch;
+
+	info = (const void *)((uintptr_t)fwdata + fwsize - sizeof(*info));
+
+	ver_minor = info->ver[1] >> 4;
+	ver_patch = info->ver[1] & 0xf;
+
+	printf("Firmware loaded, date %02x%02x/%02x/%02x, ver %x.%u.%u\n",
+	       info->datecode[0], info->datecode[1], info->datecode[2],
+	       info->datecode[3], info->ver[0], ver_minor, ver_patch);
+}
+
+int __weak mt7987_i2p5ge_get_fw(void **fw, size_t *fwsize,
+				void **dspfw, size_t *dspfwsize)
+{
+	void *pmb, *dsp;
+	int ret;
+
+	pmb = malloc(MT7987_2P5GE_PMB_FW_SIZE);
+	if (!pmb)
+		return -ENOMEM;
+
+	ret = request_firmware_into_buf_via_script(
+		pmb, MT7987_2P5GE_PMB_FW_SIZE,
+		"mt7987_i2p5ge_load_pmb_firmware", fwsize);
+	if (ret) {
+		free(pmb);
+		return ret;
+	}
+
+	dsp = malloc(MT7987_2P5GE_DSPBITTB_SIZE);
+	if (!dsp) {
+		free(pmb);
+		return -ENOMEM;
+	}
+
+	ret = request_firmware_into_buf_via_script(
+		dsp, MT7987_2P5GE_DSPBITTB_SIZE,
+		"mt7987_i2p5ge_load_dspbit_firmware", dspfwsize);
+	if (ret) {
+		free(pmb);
+		free(dsp);
+		return ret;
+	}
+
+	*fw = pmb;
+	*dspfw = dsp;
+
+	return 1;
+}
+
+static int mt7987_i2p5ge_download_dspfw(struct mtk_i2p5ge_priv *priv,
+					const void *dspfw_data)
+{
+	const u32 *dspfw;
+	u32 i;
+
+	pbus_rmw(priv, SMEM_CTRL, 0, SMEM_HW_RDATA_ZERO);
+
+	pbus_rmw(priv, PHY_CTRL_CONFIG, 0, BIT(16));
+
+	/* Initialize data memory */
+	pbus_rmw(priv, DM_CTRL_P01, 0, BIT(28));
+	pbus_rmw(priv, DM_CTRL_P23, 0, BIT(28));
+
+	/* Initialize coefficient memory */
+	pbus_rmw(priv, CM_CTRL_P01, 0, BIT(28));
+	pbus_rmw(priv, CM_CTRL_P23, 0, BIT(28));
+
+	/* Initialize PM offset */
+	pbus_write(priv, SMEM_ADDR_REF_ADDR, 0);
+
+	/* Assume DSP bit data is 4-byte aligned */
+	dspfw = dspfw_data;
+
+	for (i = 0; i < (MT7987_2P5GE_DSPBITTB_SIZE >> 2); i += 4) {
+		pbus_write(priv, SMEM_WDAT0, dspfw[i]);
+		pbus_write(priv, SMEM_WDAT1, dspfw[i + 1]);
+		pbus_write(priv, SMEM_WDAT2, dspfw[i + 2]);
+		pbus_write(priv, SMEM_WDAT3, dspfw[i + 3]);
+	}
+
+	pbus_rmw(priv, DM_CTRL_P01, BIT(28), 0);
+	pbus_rmw(priv, DM_CTRL_P23, BIT(28), 0);
+
+	pbus_rmw(priv, CM_CTRL_P01, BIT(28), 0);
+	pbus_rmw(priv, CM_CTRL_P23, BIT(28), 0);
+
+	return 0;
+}
+
+static int mt7987_i2p5ge_phy_load_fw(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_priv *priv = phydev->priv;
+	size_t fw_size, dspfw_size;
 	void __iomem *apb_base;
-	void __iomem *pmb_addr;
-	size_t fw_size = 0;
-	u8 *fw;
-	int ret, i;
+	void *fw, *dspfw;
+	int ret, fwrc;
 	u32 reg;
 
-	if (priv->fw_loaded)
-		return 0;
-
-	apb_base = map_physmem(MTK_2P5GPHY_APB_BASE,
-			       MTK_2P5GPHY_APB_LEN, MAP_NOCACHE);
+	apb_base = ioremap(MTK_2P5GPHY_APB_BASE, MTK_2P5GPHY_APB_SIZE);
 	if (!apb_base)
-		return -ENOMEM;
+		return -ENODEV;
 
-	pmd_reg_base = map_physmem(MTK_2P5GPHY_PMD_REG_BASE,
-				   MTK_2P5GPHY_PMD_REG_LEN, MAP_NOCACHE);
-	if (!pmd_reg_base) {
-		ret = -ENOMEM;
-		goto free_apb;
+	fwrc = mt7987_i2p5ge_get_fw(&fw, &fw_size, &dspfw, &dspfw_size);
+	if (fwrc < 0) {
+		dev_err(phydev->dev, "Failed to get firmware data\n");
+		return -EINVAL;
 	}
 
-	xbz_pcs_reg_base = map_physmem(MTK_2P5GPHY_XBZ_PCS_REG_BASE,
-				       MTK_2P5GPHY_XBZ_PCS_REG_LEN,
-				       MAP_NOCACHE);
-	if (!xbz_pcs_reg_base) {
-		ret = -ENOMEM;
-		goto free_pmd;
-	}
-
-	xbz_pma_rx_base = map_physmem(MTK_2P5GPHY_XBZ_PMA_RX_BASE,
-			              MTK_2P5GPHY_XBZ_PMA_RX_LEN, MAP_NOCACHE);
-	if (!xbz_pma_rx_base) {
-		ret = -ENOMEM;
-		goto free_pcs;
-	}
-
-	chip_scu_base = map_physmem(MTK_2P5GPHY_CHIP_SCU_BASE,
-				    MTK_2P5GPHY_CHIP_SCU_LEN, MAP_NOCACHE);
-	if (!chip_scu_base) {
-		ret = -ENOMEM;
-		goto free_pma;
-	}
-
-	mcu_csr_base = map_physmem(MTK_2P5GPHY_MCU_CSR_BASE,
-				   MTK_2P5GPHY_MCU_CSR_LEN, MAP_NOCACHE);
-	if (!mcu_csr_base) {
-		ret = -ENOMEM;
-		goto free_chip_scu;
-	}
-
-	pmb_addr = map_physmem(MTK_2P5GPHY_PMB_FW_BASE,
-			       MT7987_2P5GE_PMB_FW_SIZE, MAP_NOCACHE);
-	if (!pmb_addr) {
-		return -ENOMEM;
-		goto free_mcu_csr;
-	}
-
-	fw = (u8 *)mt7987_i2p5ge_phy_pmb;
-	fw_size = sizeof(mt7987_i2p5ge_phy_pmb);
 	if (fw_size != MT7987_2P5GE_PMB_FW_SIZE) {
-		dev_err(dev, "PMb firmware size 0x%zx != 0x%x\n",
+		dev_err(phydev->dev,
+			"PMB firmware size mismatch (0x%zx != 0x%x)\n",
 			fw_size, MT7987_2P5GE_PMB_FW_SIZE);
 		ret = -EINVAL;
-		goto free_pmb_addr;
+		goto cleanup;
+	}
+
+	if (dspfw_size != MT7987_2P5GE_DSPBITTB_SIZE) {
+		dev_err(phydev->dev,
+			"DSP code size mismatch (0x%zx != 0x%x)\n",
+			dspfw_size, MT7987_2P5GE_DSPBITTB_SIZE);
+		ret = -EINVAL;
+		goto cleanup;
 	}
 
 	/* Force 2.5Gphy back to AN state */
 	phy_set_bits_mmd(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_RESET);
-	udelay(5000);
+	mdelay(5);
 	phy_set_bits_mmd(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_PDOWN);
 
-	reg = readw(apb_base + SW_RESET);
-	writew(reg & ~MD32_RESTART_EN_CLEAR, apb_base + SW_RESET);
-	writew(reg | MD32_RESTART_EN_CLEAR, apb_base + SW_RESET);
-	writew(reg & ~MD32_RESTART_EN_CLEAR, apb_base + SW_RESET);
+	clrbits_le16(apb_base + SW_RESET, MD32_RESTART_EN_CLEAR);
+	setbits_le16(apb_base + SW_RESET, MD32_RESTART_EN_CLEAR);
+	clrbits_le16(apb_base + SW_RESET, MD32_RESTART_EN_CLEAR);
 
-	reg = readw(mcu_csr_base + MD32_EN_CFG);
-	writew(reg & ~MD32_EN, mcu_csr_base + MD32_EN_CFG);
+	pbus_rmw(priv, MD32_EN_CFG, MD32_EN, 0);
 
-	for(i = 0; i < (MT7987_2P5GE_PMB_FW_SIZE >> 2); i++) {
-		writel(*((u32 *)fw + i), (u32 *)pmb_addr + i);
-	}
-	dev_info(phydev->dev, "Firmware date code: %x/%x/%x, version: %x.%x\n",
-		 be16_to_cpu(*((__be16 *)(fw + MT7987_2P5GE_PMB_FW_SIZE - 8))),
-		 *(fw + MT7987_2P5GE_PMB_FW_SIZE - 6),
-		 *(fw + MT7987_2P5GE_PMB_FW_SIZE - 5),
-		 *(fw + MT7987_2P5GE_PMB_FW_SIZE - 2),
-		 *(fw + MT7987_2P5GE_PMB_FW_SIZE - 1));
+	ret = mt798x_i2p5ge_download_fw(priv, MT7987_2P5GE_PMB_FW_SIZE, fw);
+	if (ret)
+		goto cleanup;
 
 	/* Enable 100Mbps module clock. */
-	writel(FIELD_PREP(RG_SPEED_MASK, RG_SPEED_100),
-	       pmd_reg_base + FNPLL_PWR_CTRL1);
+	pbus_rmw(priv, FNPLL_PWR_CTRL1, RG_SPEED_MASK, RG_SPEED_100);
 
 	/* Check if 100Mbps module clock is ready. */
-	ret = readl_poll_timeout(pmd_reg_base + FNPLL_PWR_CTRL_STATUS, reg,
+	ret = readl_poll_timeout(priv->reg_base + FNPLL_PWR_CTRL_STATUS, reg,
 				 reg & RG_SPEED_100_STABLE, 10000);
-	if (ret)
-		dev_err(dev, "Fail to enable 100Mbps module clock: %d\n", ret);
+	if (ret) {
+		dev_err(phydev->dev,
+			"Timed out enabling 100Mbps module clock\n");
+	}
 
 	/* Enable 2.5Gbps module clock. */
-	writel(FIELD_PREP(RG_SPEED_MASK, RG_SPEED_2500),
-	       pmd_reg_base + FNPLL_PWR_CTRL1);
+	pbus_rmw(priv, FNPLL_PWR_CTRL1, RG_SPEED_MASK, RG_SPEED_2500);
 
 	/* Check if 2.5Gbps module clock is ready. */
-	ret = readl_poll_timeout(pmd_reg_base + FNPLL_PWR_CTRL_STATUS, reg,
+	ret = readl_poll_timeout(priv->reg_base + FNPLL_PWR_CTRL_STATUS, reg,
 				 reg & RG_SPEED_2500_STABLE, 10000);
 
-	if (ret)
-		dev_err(dev, "Fail to enable 2.5Gbps module clock: %d\n", ret);
+	if (ret) {
+		dev_err(phydev->dev,
+			"Timed out enabling 2.5Gbps module clock\n");
+	}
 
 	/* Disable AN */
 	phy_clear_bits_mmd(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_ANENABLE);
@@ -249,256 +453,234 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 			 MTK_PHY_FORCE_LINK_STATUS_HCD);
 
 	/* Set xbz, pma and rx as "do not reset" in order to input DSP code. */
-	reg = readl(pmd_reg_base + DO_NOT_RESET);
-	reg |= DO_NOT_RESET_XBZ | DO_NOT_RESET_PMA | DO_NOT_RESET_RX;
-	writel(reg, pmd_reg_base + DO_NOT_RESET);
+	pbus_rmw(priv, DO_NOT_RESET, 0,
+		 DO_NOT_RESET_XBZ | DO_NOT_RESET_PMA | DO_NOT_RESET_RX);
 
-	reg = readl(chip_scu_base + SYS_SW_RESET);
-	writel(reg & ~RESET_RST_CNT, chip_scu_base + SYS_SW_RESET);
+	pbus_rmw(priv, SYS_SW_RESET, RESET_RST_CNT, 0);
 
-	writel(WRITE_PROTECT_KEY, xbz_pcs_reg_base + PMU_WP);
+	pbus_write(priv, PMU_WP, WRITE_PROTECT_KEY);
 
-	reg = readl(xbz_pcs_reg_base + PMU_PMA_AUTO_CFG);
-	reg |= PMU_AUTO_MODE_EN | POWER_ON_AUTO_MODE;
-	writel(reg, xbz_pcs_reg_base + PMU_PMA_AUTO_CFG);
+	pbus_rmw(priv, PMU_PMA_AUTO_CFG, 0,
+		 PMU_AUTO_MODE_EN | POWER_ON_AUTO_MODE);
 
 	/* Check if clock in auto mode is disabled. */
-	ret = readl_poll_timeout(xbz_pcs_reg_base + PMU_PMA_STATUS, reg,
+	ret = readl_poll_timeout(priv->reg_base + PMU_PMA_STATUS, reg,
 				 (reg & CLK_IS_DISABLED) == 0x0, 100000);
 	if (ret)
-		dev_err(dev, "Clock isn't disabled in auto mode: %d\n", ret);
+		dev_err(phydev->dev, "Timed out enabling clock auto mode\n");
 
-	reg = readl(xbz_pma_rx_base + SMEM_CTRL);
-	writel(reg | SMEM_HW_RDATA_ZERO, xbz_pma_rx_base + SMEM_CTRL);
+	ret = mt7987_i2p5ge_download_dspfw(priv, dspfw);
+	if (ret)
+		goto cleanup;
 
-	reg = readl(xbz_pcs_reg_base + PHY_CTRL_CONFIG);
-	writel(reg | BIT(16), xbz_pcs_reg_base + PHY_CTRL_CONFIG);
+	pbus_rmw(priv, MD32_EN_CFG, 0, MD32_EN);
 
-	/* Initialize data memory */
-	reg = readl(xbz_pma_rx_base + DM_CTRL_P01);
-	writel(reg | BIT(28), xbz_pma_rx_base + DM_CTRL_P01);
-	reg = readl(xbz_pma_rx_base + DM_CTRL_P23);
-	writel(reg | BIT(28), xbz_pma_rx_base + DM_CTRL_P23);
-
-	/* Initialize coefficient memory */
-	reg = readl(xbz_pma_rx_base + CM_CTRL_P01);
-	writel(reg | BIT(28), xbz_pma_rx_base + CM_CTRL_P01);
-	reg = readl(xbz_pma_rx_base + CM_CTRL_P23);
-	writel(reg | BIT(28), xbz_pma_rx_base + CM_CTRL_P23);
-
-	/* Initilize PM offset */
-	writel(0, xbz_pma_rx_base + SMEM_ADDR_REF_ADDR);
-
-	fw = (u8 *)mt7987_i2p5ge_phy_DSPBitTb;
-	fw_size = sizeof(mt7987_i2p5ge_phy_DSPBitTb);
-	if (fw_size != MT7987_2P5GE_DSPBITTB_SIZE) {
-		dev_err(dev, "PMb firmware size 0x%zx != 0x%x\n",
-			fw_size, MT7987_2P5GE_DSPBITTB_SIZE);
-		ret = -EINVAL;
-		goto free_pmb_addr;
-	}
-
-	for (i = 0; i < MT7987_2P5GE_DSPBITTB_SIZE - 1; i += 16) {
-		writel(*((uint32_t *)(fw + i)),
-		       xbz_pma_rx_base + SMEM_WDAT0);
-		writel(*((uint32_t *)(fw + i + 0x4)),
-		       xbz_pma_rx_base + SMEM_WDAT1);
-		writel(*((uint32_t *)(fw + i + 0x8)),
-		       xbz_pma_rx_base + SMEM_WDAT2);
-		writel(*((uint32_t *)(fw + i + 0xc)),
-		       xbz_pma_rx_base + SMEM_WDAT3);
-	}
-
-	reg = readl(xbz_pma_rx_base + DM_CTRL_P01);
-	writel(reg & ~BIT(28), xbz_pma_rx_base + DM_CTRL_P01);
-
-	reg = readl(xbz_pma_rx_base + DM_CTRL_P23);
-	writel(reg & ~BIT(28), xbz_pma_rx_base + DM_CTRL_P23);
-
-	reg = readl(xbz_pma_rx_base + CM_CTRL_P01);
-	writel(reg & ~BIT(28), xbz_pma_rx_base + CM_CTRL_P01);
-
-	reg = readl(xbz_pma_rx_base + CM_CTRL_P23);
-	writel(reg & ~BIT(28), xbz_pma_rx_base + CM_CTRL_P23);
-
-	reg = readw(mcu_csr_base + MD32_EN_CFG);
-	writew(reg | MD32_EN, mcu_csr_base + MD32_EN_CFG);
 	phy_set_bits_mmd(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_RESET);
+
 	/* We need a delay here to stabilize initialization of MCU */
-	udelay(8000);
-	dev_info(dev, "Firmware loading/trigger ok.\n");
+	mdelay(8);
 
-	priv->fw_loaded = true;
+	mt798x_i2p5ge_print_fw_info(fw, fw_size);
 
-free_pmb_addr:
-	unmap_physmem(pmb_addr, MAP_NOCACHE);
-free_mcu_csr:
-	unmap_physmem(mcu_csr_base, MAP_NOCACHE);
-free_chip_scu:
-	unmap_physmem(chip_scu_base, MAP_NOCACHE);
-free_pma:
-	unmap_physmem(xbz_pma_rx_base, MAP_NOCACHE);
-free_pcs:
-	unmap_physmem(xbz_pcs_reg_base, MAP_NOCACHE);
-free_pmd:
-	unmap_physmem(pmd_reg_base, MAP_NOCACHE);
-free_apb:
-	unmap_physmem(apb_base, MAP_NOCACHE);
+cleanup:
+	if (fwrc > 0) {
+		free(fw);
+		free(dspfw);
+	}
+
+	iounmap(apb_base);
 
 	return ret;
 }
 
-static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
+static int mt7987_i2p5ge_phy_config(struct phy_device *phydev)
 {
-	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
-	void __iomem *mcu_csr_base, *pmb_addr;
-	size_t fw_size = 0;
-	u8 *fw;
-	int ret, i;
-	u16 reg;
+	struct mtk_i2p5ge_priv *priv = phydev->priv;
 
-	if (priv->fw_loaded)
-		return 0;
+	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			   MTK_PHY_LED_ON_POLARITY);
 
-	pmb_addr = map_physmem(MT7988_2P5GE_PMB_FW_BASE,
-			       MT7988_2P5GE_PMB_FW_LEN, MAP_NOCACHE);
-	if (!pmb_addr)
-		return -ENOMEM;
-	mcu_csr_base = map_physmem(MTK_2P5GPHY_MCU_CSR_BASE,
-				   MTK_2P5GPHY_MCU_CSR_LEN, MAP_NOCACHE);
-	if (!mcu_csr_base) {
-		ret = -ENOMEM;
-		goto free_pmb;
+	if (priv->retrain) {
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MT7987_OPTIONS,
+				   NORMAL_RETRAIN_DISABLE);
+	} else {
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MT7987_OPTIONS,
+				 NORMAL_RETRAIN_DISABLE);
 	}
 
-	fw = (u8 *)mt7988_i2p5ge_phy_pmb;
-	fw_size = sizeof(mt7988_i2p5ge_phy_pmb);
-	if (fw_size != MT7988_2P5GE_PMB_FW_SIZE) {
-		dev_err(phydev->dev, "Firmware size 0x%zx != 0x%x\n",
-			fw_size, MT7988_2P5GE_PMB_FW_SIZE);
-		ret = -EINVAL;
-		goto free;
-	}
-	/* Firmware is arranged in 4 byte-aligned */
-	for(i = 0; i < (MT7988_2P5GE_PMB_FW_SIZE >> 2); i++) {
-		writel(*((u32 *)fw + i), (u32 *)pmb_addr + i);
-	}
-	dev_info(phydev->dev, "Firmware date code: %x/%x/%x, version: %x.%x\n",
-		 be16_to_cpu(*((__be16 *)(fw + MT7988_2P5GE_PMB_FW_SIZE - 8))),
-		 *(fw + MT7988_2P5GE_PMB_FW_SIZE - 6),
-		 *(fw + MT7988_2P5GE_PMB_FW_SIZE - 5),
-		 *(fw + MT7988_2P5GE_PMB_FW_SIZE - 2),
-		 *(fw + MT7988_2P5GE_PMB_FW_SIZE - 1));
-
-	reg = readw(mcu_csr_base + MD32_EN_CFG);
-	writew(reg & ~MD32_EN, mcu_csr_base + MD32_EN_CFG);
-	writew(reg | MD32_EN, mcu_csr_base + MD32_EN_CFG);
-	phy_set_bits_mmd(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_RESET);
-	/* We need a delay here to stabilize initialization of MCU */
-	udelay(8000);
-	dev_info(phydev->dev, "Firmware loading/trigger ok.\n");
-
-	priv->fw_loaded = true;
-
-free:
-	unmap_physmem(mcu_csr_base, MAP_NOCACHE);
-free_pmb:
-	unmap_physmem(pmb_addr, MAP_NOCACHE);
-
-	return ret;
+	return mt798x_i2p5ge_phy_config(phydev);
 }
 
-static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
+static int mt7987_i2p5ge_phy_probe(struct phy_device *phydev)
 {
 	int ret;
 
-	/* Check if PHY interface type is compatible */
-	/*if (phydev->interface != PHY_INTERFACE_MODE_INTERNAL)
-		return -ENODEV;*/
-
-	switch (phydev->phy_id) {
-	case MTK_2P5GPHY_ID_MT7987:
-		ret = mt7987_2p5ge_phy_load_fw(phydev);
-		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-				   MTK_PHY_LED_ON_POLARITY);
-		break;
-	case MTK_2P5GPHY_ID_MT7988:
-		ret = mt7988_2p5ge_phy_load_fw(phydev);
-		phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-				 MTK_PHY_LED_ON_POLARITY);
-		break;
-	default:
-		return -EINVAL;
-	}
-	if (ret < 0)
-		return ret;
-	/* Setup LED */
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-			 MTK_PHY_LED_ON_LINK10 |
-			 MTK_PHY_LED_ON_LINK100 |
-			 MTK_PHY_LED_ON_LINK1000 |
-			 MTK_PHY_LED_ON_LINK2500);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED1_ON_CTRL,
-			 MTK_PHY_LED_ON_FDX | MTK_PHY_LED_ON_HDX);
-
-	/* Switch pinctrl after setting polarity to avoid bogus blinking */
-	ret = pinctrl_select_state(phydev->dev, "i2p5gbe-led");
+	ret = mt798x_i2p5ge_phy_probe(phydev);
 	if (ret)
-		dev_err(phydev->dev, "Fail to set LED pins!\n");
+		return ret;
 
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LPI_PCS_DSP_CTRL,
-		       MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK, 0);
-
-	/* Enable 16-bit next page exchange bit if 1000-BT isn't advertising */
-	mtk_tr_modify(phydev, 0x0, 0xf, 0x3c, AUTO_NP_10XEN,
-		      FIELD_PREP(AUTO_NP_10XEN, 0x1));
-
-	/* Enable HW auto downshift */
-	mtk_phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_1);
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_AUX_CTRL_AND_STATUS,
-		       0, MTK_PHY_ENABLE_DOWNSHIFT);
-	mtk_phy_restore_page(phydev);
-
-	return 0;
+	return mt7987_i2p5ge_phy_load_fw(phydev);
 }
 
-static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
+int __weak mt7988_i2p5ge_get_fw(void **fw, size_t *size)
 {
-	struct mtk_i2p5ge_phy_priv *priv;
+	void *pmb;
+	int ret;
 
-	priv = devm_kzalloc(phydev->dev,
-			    sizeof(struct mtk_i2p5ge_phy_priv), GFP_KERNEL);
-	if (!priv)
+	pmb = malloc(MT7988_2P5GE_PMB_FW_SIZE);
+	if (!pmb)
 		return -ENOMEM;
 
-	priv->fw_loaded = false;
-	phydev->priv = priv;
+	ret = request_firmware_into_buf_via_script(
+		pmb, MT7988_2P5GE_PMB_FW_SIZE,
+		"mt7988_i2p5ge_load_pmb_firmware", size);
+	if (ret) {
+		free(pmb);
+		return ret;
+	}
+
+	*fw = pmb;
+
+	return 1;
+}
+
+static int mt7988_i2p5ge_phy_load_fw(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_priv *priv = phydev->priv;
+	size_t fw_size;
+	int ret, fwrc;
+	void *fw;
+
+	fwrc = mt7988_i2p5ge_get_fw(&fw, &fw_size);
+	if (fwrc < 0) {
+		dev_err(phydev->dev, "Failed to get firmware data\n");
+		return -EINVAL;
+	}
+
+	if (fw_size != MT7988_2P5GE_PMB_FW_SIZE) {
+		dev_err(phydev->dev, "Firmware size mismatch (0x%zx != 0x%x)\n",
+			fw_size, MT7988_2P5GE_PMB_FW_SIZE);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	ret = mt798x_i2p5ge_download_fw(priv, MT7988_2P5GE_PMB_FW_SIZE, fw);
+	if (ret)
+		goto cleanup;
+
+	pbus_rmw(priv, MD32_EN_CFG, MD32_EN, 0);
+	pbus_rmw(priv, MD32_EN_CFG, 0, MD32_EN);
+
+	phy_set_bits_mmd(phydev, MDIO_DEVAD_NONE, MII_BMCR, BMCR_RESET);
+
+	/* We need a delay here to stabilize initialization of MCU */
+	mdelay(8);
+
+	mt798x_i2p5ge_print_fw_info(fw, fw_size);
+
+cleanup:
+	if (fwrc > 0)
+		free(fw);
+
+	return ret;
+}
+
+static int mt7988_i2p5ge_phy_config(struct phy_device *phydev)
+{
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			 MTK_PHY_LED_ON_POLARITY);
+
+	return mt798x_i2p5ge_phy_config(phydev);
+}
+
+static int mt7988_i2p5ge_phy_probe(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = mt798x_i2p5ge_phy_probe(phydev);
+	if (ret)
+		return ret;
+
+	return mt7988_i2p5ge_phy_load_fw(phydev);
+}
+
+static int mt798x_i2p5ge_phy_startup(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_priv *priv = phydev->priv;
+	int ret;
+
+	ret = genphy_update_link(phydev);
+	if (ret)
+		return ret;
+
+	/* Initialize speed/duplex */
+	phydev->speed = SPEED_10;
+	phydev->duplex = DUPLEX_HALF;
+
+	if (phydev->link) {
+		ret = phy_read(phydev, MDIO_DEVAD_NONE, PHY_AUX_CTRL_STATUS);
+		if (ret < 0)
+			return ret;
+
+		switch (FIELD_GET(PHY_AUX_SPEED_MASK, ret)) {
+		case PHY_AUX_SPD_10:
+			phydev->speed = SPEED_10;
+			break;
+
+		case PHY_AUX_SPD_100:
+			phydev->speed = SPEED_100;
+			break;
+
+		case PHY_AUX_SPD_1000:
+			/* Apply gbe_min_ipg_11_bytes setting for 1000Mbps */
+			if (!priv->gbe_min_ipg_11_bytes) {
+				pbus_rmw(priv, FIFO_CTRL,
+					 TX_SFIFO_IDLE_CNT_MASK | TX_SFIFO_DEL_IPG_WM_MASK,
+					 FIELD_PREP(TX_SFIFO_IDLE_CNT_MASK, 0x1) |
+					 FIELD_PREP(TX_SFIFO_DEL_IPG_WM_MASK, 0x10));
+				pbus_rmw(priv, MIN_IPG_NUM, LS_MIN_IPG_NUM_MASK,
+					 FIELD_PREP(LS_MIN_IPG_NUM_MASK, 0xa));
+				pbus_rmw(priv, FC_LWM, TX_FC_LWM_MASK,
+					 FIELD_PREP(TX_FC_LWM_MASK, 0x340));
+			}
+			phydev->speed = SPEED_1000;
+			break;
+
+		case PHY_AUX_SPD_2500:
+			phydev->speed = SPEED_2500;
+			break;
+
+		default:
+			break;
+		}
+
+		/* This PHY always operates in full duplex */
+		phydev->duplex = DUPLEX_FULL;
+	}
 
 	return 0;
 }
 
-U_BOOT_PHY_DRIVER(mt7988_i2p5g) = {
-	.name = "Mediatek MT7988 internal 2.5GPHY",
-	.uid = MTK_2P5GPHY_ID_MT7988,
-	.mask = 0xfffffff0,
-	.features = PHY_10G_FEATURES,
-	.mmds = (MDIO_MMD_PCS | MDIO_MMD_AN |
-		 MDIO_MMD_VEND1 | MDIO_MMD_VEND2),
-	.probe = &mt798x_2p5ge_phy_probe,
-	.config = &mt798x_2p5ge_phy_config_init,
-	.startup = &genphy_startup,
-	.shutdown = &genphy_shutdown,
-};
-
-U_BOOT_PHY_DRIVER(mt7987_i2p5g) = {
-	.name = "Mediatek MT7987 internal 2.5GPHY",
+U_BOOT_PHY_DRIVER(mt7987_i2p5ge) = {
+	.name = "MediaTek MT7987 built-in 2.5GbE PHY",
 	.uid = MTK_2P5GPHY_ID_MT7987,
 	.mask = 0xfffffff0,
 	.features = PHY_10G_FEATURES,
-	.mmds = (MDIO_MMD_PCS | MDIO_MMD_AN |
-		 MDIO_MMD_VEND1 | MDIO_MMD_VEND2),
-	.probe = &mt798x_2p5ge_phy_probe,
-	.config = &mt798x_2p5ge_phy_config_init,
-	.startup = &genphy_startup,
+	.mmds = (MDIO_MMD_PCS | MDIO_MMD_AN | MDIO_MMD_VEND1 | MDIO_MMD_VEND2),
+	.probe = &mt7987_i2p5ge_phy_probe,
+	.config = &mt7987_i2p5ge_phy_config,
+	.startup = &mt798x_i2p5ge_phy_startup,
+	.shutdown = &genphy_shutdown,
+};
+
+U_BOOT_PHY_DRIVER(mt7988_i2p5ge) = {
+	.name = "MediaTek MT7988 built-in 2.5GbE PHY",
+	.uid = MTK_2P5GPHY_ID_MT7988,
+	.mask = 0xfffffff0,
+	.features = PHY_10G_FEATURES,
+	.mmds = (MDIO_MMD_PCS | MDIO_MMD_AN | MDIO_MMD_VEND1 | MDIO_MMD_VEND2),
+	.probe = &mt7988_i2p5ge_phy_probe,
+	.config = &mt7988_i2p5ge_phy_config,
+	.startup = &mt798x_i2p5ge_phy_startup,
 	.shutdown = &genphy_shutdown,
 };

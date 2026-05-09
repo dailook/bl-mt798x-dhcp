@@ -715,6 +715,12 @@ config CMD_ENV_EXISTS
 	  Check if a variable is defined in the environment for use in
 	  shell scripting.
 
+config CMD_ENV_READMEM
+	bool "env readmem"
+	default y
+	help
+	  Store memory content into environment variable.
+
 config CMD_ENV_CALLBACK
 	bool "env callbacks - print callbacks and their associated variables"
 	help
@@ -971,6 +977,11 @@ config CMD_RANDOM
 	depends on CMD_MEMORY && (LIB_RAND || LIB_HW_RAND)
 	help
 	  random - fill memory with random data
+
+config CMD_MEMSIZE
+	bool "memsize"
+	help
+	  Get RAM via command for use in scripts.
 
 config CMD_MEMTEST
 	bool "memtest"

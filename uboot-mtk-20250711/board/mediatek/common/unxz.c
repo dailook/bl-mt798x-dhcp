@@ -26,6 +26,8 @@ static bool xz_crc64_initialized;
 void xz_crc64_init(void);
 #endif
 
+const uint8_t xz_magic[6] = { 0xFD, '7', 'z', 'X', 'Z', 0x00 };
+
 void *xz_malloc(size_t size)
 {
 	return malloc(size);

@@ -17,6 +17,8 @@
 #define XZ_INTERNAL_CRC32	1
 #endif
 
+extern const uint8_t xz_magic[6];
+
 int unxz(const void *in_buf, size_t in_len, size_t *out_len,
 	 const void *out_buf, size_t out_buf_size);
 

@@ -1,0 +1,235 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+/dts-v1/;
+#include "mt7981.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/linux-event-codes.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "GatoNetworks GDSP";
+	compatible = "gatonetworks,gdsp", "mediatek,mt7981";
+  chosen {
+		stdout-path = &uart0;
+		tick-timer = &timer0;
+  };
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x10000000>;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		sim1 {
+			label = "sim1";
+			gpios = <&pio 13 GPIO_ACTIVE_LOW>;
+		};
+
+		sim2 {
+			label = "sim2";
+			gpios = <&pio 0 GPIO_ACTIVE_LOW>;
+		};
+
+		sg1 {
+			label = "sg1";
+			gpios = <&pio 10 GPIO_ACTIVE_LOW>;
+		};
+
+		sg2 {
+			label = "sg2";
+			gpios = <&pio 11 GPIO_ACTIVE_LOW>;
+		};
+
+		sg3 {
+			label = "sg3";
+			gpios = <&pio 12 GPIO_ACTIVE_LOW>;
+		};
+
+		sg4 {
+			label = "sg4";
+			gpios = <&pio 7 GPIO_ACTIVE_LOW>;
+		};
+
+		sg5 {
+			label = "sg5";
+			gpios = <&pio 8 GPIO_ACTIVE_LOW>;
+		};
+
+		sg6 {
+			label = "sg6";
+			gpios = <&pio 9 GPIO_ACTIVE_LOW>;
+		};
+	};
+	gpio-watchdog {
+		compatible = "linux,wdt-gpio";
+		gpios = <&pio 6 GPIO_ACTIVE_LOW>;
+		hw_algo = "toggle";
+		hw_margin_ms = <25000>;
+		always-running;
+		u-boot,autostart;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		  compatible = "regulator-fixed";
+		  regulator-name = "fixed-3.3V";
+		  regulator-min-microvolt = <3300000>;
+		  regulator-max-microvolt = <3300000>;
+		  regulator-boot-on;
+		  regulator-always-on;
+	};
+};
+
+&eth {
+	status = "okay";
+	mediatek,gmac-id = <0>;
+	phy-mode = "2500base-x";
+	mediatek,switch = "mt7531";
+	reset-gpios = <&pio 39 GPIO_ACTIVE_HIGH>;
+
+	fixed-link {
+		speed = <2500>;
+		full-duplex;
+	};
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_flash_pins>;
+	status = "okay";
+	must_tx;
+	enhance_timing;
+	dma_ext;
+	ipm_design;
+	support_quad;
+	tick_dly = <2>;
+	sample_sel = <0>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@00000 {
+				label = "BL2";
+				reg = <0x00000 0x0040000>;
+				read-only;
+			};
+
+			partition@40000 {
+				label = "u-boot-env";
+				reg = <0x40000 0x0010000>;
+			};
+
+			partition@50000 {
+				label = "Factory";
+				reg = <0x50000 0x00B0000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "FIP";
+				reg = <0x100000 0x0080000>;
+			};
+
+			partition@180000 {
+				label = "firmware";
+				reg = <0x180000 0x1E80000>;
+			};
+		};
+	};
+};
+
+&pio {
+	mmc0_pins_default: mmc0default {
+		mux {
+			function = "flash";
+			groups =  "emmc_45";
+		};
+		conf-cmd-dat {
+			pins = "SPI0_CLK", "SPI0_MOSI", "SPI0_MISO",
+				"SPI0_CS",  "SPI0_HOLD", "SPI0_WP",
+				"SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
+			input-enable;
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+		conf-clk {
+			pins = "SPI1_CS";
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+		conf-rst {
+			pins = "PWM0";
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+	};
+
+	uart2_pins: uart2-pins {
+		mux {
+			function = "uart";
+			groups = "uart2_0_tx_rx";
+		};
+	};
+
+	spi2_flash_pins: spi2-pins {
+		mux {
+			function = "spi";
+			groups = "spi2", "spi2_wp_hold";
+		};
+
+		conf-pu {
+			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
+		};
+
+		conf-pd {
+			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&mmc0 {
+	assigned-clock-parents = <&topckgen CLK_TOP_CB_NET2_D4>,
+				 <&topckgen CLK_TOP_CB_NET2_D2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins_default>;
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	cap-sd-highspeed;
+	r_smpl = <0>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	status = "okay";
+};

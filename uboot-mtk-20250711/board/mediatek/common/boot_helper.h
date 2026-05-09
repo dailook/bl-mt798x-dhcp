@@ -15,6 +15,7 @@
 #define BOOT_PARAM_STR_MAX_LEN			256
 
 extern int board_boot_default(bool do_boot);
+extern int board_chainload_default(bool do_boot);
 
 int boot_from_mem(ulong data_load_addr);
 

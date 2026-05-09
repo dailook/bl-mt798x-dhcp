@@ -35,6 +35,11 @@ int read_mmc_part(const char *partname, void *data, size_t *size,
 
 int generic_mtd_boot_image(bool do_boot);
 
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mtd_boot_next_bl(bool do_boot);
+int generic_ubi_boot_next_bl(bool do_boot);
+#endif
+
 int generic_mtd_write_bl2(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size);
 
@@ -47,6 +52,9 @@ int generic_mtd_write_fip(void *priv, const struct data_part_entry *dpe,
 #ifdef CONFIG_MTD_UBI
 int generic_ubi_write_fip(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size);
+
+int generic_ubi_write_factory(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size);
 
 #ifdef CONFIG_MTK_DUAL_FIP
 int generic_ubi_write_dual_fip(void *priv, const struct data_part_entry *dpe,
@@ -69,6 +77,13 @@ int generic_mtd_update_bl33(void *priv, const struct data_part_entry *dpe,
 int generic_mtd_write_fw(void *priv, const struct data_part_entry *dpe,
 			 const void *data, size_t size);
 
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mtd_write_next_bl(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size);
+int generic_ubi_write_next_bl(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size);
+#endif
+
 int generic_mtd_write_simg(void *priv, const struct data_part_entry *dpe,
 			   const void *data, size_t size);
 
@@ -81,6 +96,10 @@ int generic_mtd_validate_fw(void *priv, const struct data_part_entry *dpe,
 /******************************************************************************/
 
 int generic_mmc_boot_image(bool do_boot);
+
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mmc_boot_next_bl(bool do_boot);
+#endif
 
 int generic_emmc_write_bl2(void *priv, const struct data_part_entry *dpe,
 			   const void *data, size_t size);
@@ -117,7 +136,12 @@ int generic_mmc_write_fw(void *priv, const struct data_part_entry *dpe,
 
 #ifdef CONFIG_MTK_DUAL_BOOT_EMERG_IMAGE
 int generic_mmc_write_emerg_fw(void *priv, const struct data_part_entry *dpe,
-			       const void *data, size_t size);
+			      const void *data, size_t size);
+#endif
+
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mmc_write_next_bl(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size);
 #endif
 
 int generic_mmc_write_simg(void *priv, const struct data_part_entry *dpe,
@@ -153,6 +177,9 @@ int generic_validate_bl31(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size);
 
 int generic_validate_bl33(void *priv, const struct data_part_entry *dpe,
+			  const void *data, size_t size);
+
+int generic_validate_next_bl(void *priv, const struct data_part_entry *dpe,
 			  const void *data, size_t size);
 
 int generic_validate_simg(void *priv, const struct data_part_entry *dpe,

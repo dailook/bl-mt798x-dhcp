@@ -5,6 +5,7 @@
  * Author: Weijie Gao <weijie.gao@mediatek.com>
  */
 
+#include <hang.h>
 #include "bootmenu_common.h"
 #include "autoboot_helper.h"
 #include "mtd_helper.h"
@@ -16,7 +17,11 @@ static const struct data_part_entry mtd_parts[] = {
 		.abbr = "bl2",
 		.env_name = "bootfile.bl2",
 		.validate = generic_validate_bl2,
+#ifdef CONFIG_MTK_UBI_BL2_IN_MTD_PART
+		.write = generic_mtd_write_bl2,
+#else
 		.write = generic_mtd_write_bl2_redund,
+#endif
 	},
 	{
 		.name = "ATF FIP",
@@ -26,7 +31,11 @@ static const struct data_part_entry mtd_parts[] = {
 #ifdef CONFIG_MTK_DUAL_FIP
 		.write = generic_ubi_write_dual_fip,
 #else
+#ifdef CONFIG_MTK_UBI_FIP_IN_MTD_PART
+		.write = generic_mtd_write_fip,
+#else
 		.write = generic_ubi_write_fip,
+#endif
 #endif
 		.post_action = UPGRADE_ACTION_CUSTOM,
 		//.do_post_action = generic_invalidate_env,
@@ -37,7 +46,11 @@ static const struct data_part_entry mtd_parts[] = {
 		.abbr = "bl31",
 		.env_name = "bootfile.bl31",
 		.validate = generic_validate_bl31,
+#ifdef CONFIG_MTK_UBI_FIP_IN_MTD_PART
+		.write = generic_mtd_update_bl31,
+#else
 		.write = generic_ubi_update_bl31,
+#endif
 		.post_action = UPGRADE_ACTION_CUSTOM,
 	},
 	{
@@ -45,9 +58,22 @@ static const struct data_part_entry mtd_parts[] = {
 		.abbr = "bl33",
 		.env_name = "bootfile.bl33",
 		.validate = generic_validate_bl33,
+#ifdef CONFIG_MTK_UBI_FIP_IN_MTD_PART
+		.write = generic_mtd_update_bl33,
+#else
 		.write = generic_ubi_update_bl33,
+#endif
 		.post_action = UPGRADE_ACTION_CUSTOM,
 		//.do_post_action = generic_invalidate_env,
+	},
+#endif
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+	{
+		.name = "Next stage bootloader",
+		.abbr = "nextbl",
+		.env_name = "bootfile.nextbl",
+		.validate = generic_validate_next_bl,
+		.write = generic_ubi_write_next_bl,
 	},
 #endif
 	{
@@ -62,7 +88,11 @@ static const struct data_part_entry mtd_parts[] = {
 		.name = "Factory",
 		.abbr = "factory",
 		.env_name = "bootfile.factory",
+#ifdef CONFIG_MTK_UBI_RF_IN_MTD_PART
 		.write = generic_mtd_write_factory,
+#else
+		.write = generic_ubi_write_factory,
+#endif
 	},
 	{
 		.name = "Single image",
@@ -84,11 +114,29 @@ int board_boot_default(bool do_boot)
 	return generic_mtd_boot_image(do_boot);
 }
 
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int board_chainload_default(bool do_boot)
+{
+	return generic_ubi_boot_next_bl(do_boot);
+}
+#endif
+
 static const struct bootmenu_entry mtd_bootmenu_entries[] = {
+#ifdef CONFIG_MTK_AUTO_CHAINLOAD_BL
+	{
+		.desc = "Chainload next-stage bootloader (Default)",
+		.cmd = "mtkchainload"
+	},
+	{
+		.desc = "Startup system",
+		.cmd = "mtkboardboot"
+	},
+#else
 	{
 		.desc = "Startup system (Default)",
 		.cmd = "mtkboardboot"
 	},
+#endif
 	{
 		.desc = "Upgrade firmware",
 		.cmd = "mtkupgrade fw"
@@ -115,6 +163,18 @@ static const struct bootmenu_entry mtd_bootmenu_entries[] = {
 		.desc = "Upgrade single image",
 		.cmd = "mtkupgrade simg"
 	},
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+	{
+		.desc = "Upgrade next-stage bootloader",
+		.cmd = "mtkupgrade nextbl"
+	},
+#ifndef CONFIG_MTK_AUTO_CHAINLOAD_BL
+	{
+		.desc = "Chainload next-stage bootloader",
+		.cmd = "mtkchainload"
+	},
+#endif
+#endif
 	{
 		.desc = "Load image",
 		.cmd = "mtkload"
@@ -139,6 +199,18 @@ void board_bootmenu_entries(const struct bootmenu_entry **menu, u32 *count)
 
 void default_boot_set_defaults(void *fdt)
 {
+#ifdef CONFIG_MTD_VERIFY_FDT
+	int ret;
+
+	ret = mtd_verify_linux_fdt(fdt);
+	if (ret) {
+#ifdef CONFIG_MTD_VERIFY_FDT_WARN_ONLY
+		printf("\nWarning: FDT verification failed, continue booting as requested\n\n");
+#else
+		hang();
+#endif
+	}
+#endif
 	mtd_boot_set_defaults(fdt);
 }
 

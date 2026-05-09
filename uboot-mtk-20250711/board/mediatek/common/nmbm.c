@@ -25,7 +25,8 @@ int board_nmbm_init(void)
 
 	lower = get_mtd_device_nm(CONFIG_NMBM_LOWER_MTD);
 	if (IS_ERR(lower) || !lower) {
-		printf("Lower MTD device 'spi-nand0' not found\n");
+		printf("Lower MTD device '%s' not found\n",
+		       CONFIG_NMBM_LOWER_MTD);
 		return 0;
 	}
 
@@ -40,6 +41,14 @@ int board_nmbm_init(void)
 		return 0;
 
 	add_mtd_device(upper);
+
+	/*
+	 * The first mtd_probe_devices() call above may have parsed mtdparts
+	 * before the NMBM upper MTD (nmbm0) exists. Probe again after
+	 * registering the upper device so partitions defined for nmbm0 are
+	 * created immediately.
+	 */
+	mtd_probe_devices();
 
 	return 0;
 }

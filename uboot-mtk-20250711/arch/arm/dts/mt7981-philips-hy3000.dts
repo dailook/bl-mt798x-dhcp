@@ -38,7 +38,7 @@
 		mesh-button {
 			label = "mesh";
 			linux,code = <BTN_9>;
-			gpios = <&pio 0 GPIO_ACTIVE_HIGH>;
+			gpios = <&pio 0 GPIO_ACTIVE_LOW>;
 		};
 	};
 

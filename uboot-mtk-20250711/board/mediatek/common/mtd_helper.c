@@ -10,6 +10,7 @@
 #include <env.h>
 #include <exports.h>
 #include <errno.h>
+#include <fdt_support.h>
 #include <image.h>
 #include <memalign.h>
 #include <mtd.h>
@@ -72,6 +73,11 @@ void gen_mtd_probe_devices(void)
 	const char *mtdids = NULL, *mtdparts = NULL;
 
 #if defined(CONFIG_SYS_MTDPARTS_RUNTIME)
+#ifdef CONFIG_MEDIATEK_MULTI_MTD_LAYOUT
+	/* Force runtime re-generation after layout switch in the same session */
+	env_set("mtdids", NULL);
+	env_set("mtdparts", NULL);
+#endif
 	board_mtdparts_default(&mtdids, &mtdparts);
 #else
 #if defined(MTDIDS_DEFAULT)
@@ -487,6 +493,28 @@ int mtd_update_generic(struct mtd_info *mtd, const void *data, size_t size,
 	return mtd_write_skip_bad(mtd, 0, size, mtd->size, NULL, data, verify);
 }
 
+int mtd_update_partition(const char *name, const void *data, size_t size,
+			 bool verify)
+{
+	struct mtd_info *mtd;
+
+	if (!name || !name[0]) {
+		printf("Error: Invalid MTD partition name\n");
+		return -EINVAL;
+	}
+
+	gen_mtd_probe_devices();
+
+	mtd = get_mtd_device_nm(name);
+	if (!IS_ERR_OR_NULL(mtd)) {
+		put_mtd_device(mtd);
+
+		return mtd_update_generic(mtd, data, size, verify);
+	}
+
+	return -ENODEV;
+}
+
 static int mtd_set_fdtargs_basic(void)
 {
 	int ret;
@@ -528,6 +556,7 @@ int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot)
 	u32 fit_hdrsize = sizeof(struct fdt_header);
 	u32 legacy_hdrsize = image_get_header_size();
 	u32 hdrsize, size, itb_size;
+	bool is_legacy = false;
 	ulong data_load_addr;
 	int ret;
 
@@ -557,6 +586,7 @@ int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot)
 		if (ret)
 			return ret;
 
+		is_legacy = true;
 		break;
 #endif
 #if defined(CONFIG_FIT)
@@ -589,14 +619,37 @@ int boot_from_mtd(struct mtd_info *mtd, u64 offset, bool do_boot)
 		return -EINVAL;
 	}
 
-	ret = mtd_set_fdtargs_basic();
-	if (ret)
-		return ret;
+	if (!is_legacy) {
+		ret = mtd_set_fdtargs_basic();
+		if (ret)
+			return ret;
+	}
 
 	if (!do_boot)
 		return 0;
 
 	return boot_from_mem(data_load_addr);
+}
+
+int boot_from_mtd_partition(const char *name, bool do_boot)
+{
+	struct mtd_info *mtd;
+
+	if (!name || !name[0]) {
+		printf("Error: Invalid MTD partition name\n");
+		return -EINVAL;
+	}
+
+	gen_mtd_probe_devices();
+
+	mtd = get_mtd_device_nm(name);
+	if (!IS_ERR_OR_NULL(mtd)) {
+		put_mtd_device(mtd);
+
+		return boot_from_mtd(mtd, 0, do_boot);
+	}
+
+	return -ENODEV;
 }
 
 #ifdef CONFIG_CMD_UBI
@@ -632,12 +685,13 @@ static int mount_ubi(struct mtd_info *mtd, bool create)
 			cprintln(CAUTION, "*** Failed to attach UBI ***");
 			cprintln(NORMAL, "*** Rebuilding UBI ***");
 
+			ubi_detach();
+
 			ret = mtd_erase_skip_bad(mtd, 0, mtd->size, mtd->size,
 						 NULL, NULL, NULL, false);
 			if (ret)
 				return ret;
 
-			ubi_exit();
 			ret = ubi_part(mtd->name, NULL);
 		}
 
@@ -828,6 +882,34 @@ out:
 	return ret;
 }
 #endif
+
+int ubi_update_volume(const char *name, const void *data, size_t size)
+{
+	struct mtd_info *mtd;
+	int ret;
+
+	if (!name || !name[0]) {
+		printf("Error: Standalone image name is invalid\n");
+		return -EINVAL;
+	}
+
+	gen_mtd_probe_devices();
+
+	mtd = get_mtd_device_nm(PART_UBI_NAME);
+	if (!IS_ERR_OR_NULL(mtd)) {
+		put_mtd_device(mtd);
+
+		ret = mount_ubi(mtd, false);
+		if (ret)
+			return ret;
+
+		remove_ubi_volume(name);
+
+		return update_ubi_volume(name, -1, data, size);
+	}
+
+	return -ENODEV;
+}
 
 static int write_ubi1_tar_image(const void *data, size_t size,
 				struct mtd_info *mtd_kernel,
@@ -1321,6 +1403,40 @@ static int boot_from_ubi(struct mtd_info *mtd, bool do_boot)
 	return boot_from_mem(data_load_addr);
 }
 
+int boot_from_ubi_volume(const char *name, bool do_boot)
+{
+	ulong data_load_addr = get_load_addr();
+	struct mtd_info *mtd;
+	int ret;
+
+	if (!name || !name[0]) {
+		printf("Error: Invalid UBI volume name\n");
+		return -EINVAL;
+	}
+
+	gen_mtd_probe_devices();
+
+	mtd = get_mtd_device_nm(PART_UBI_NAME);
+	if (!IS_ERR_OR_NULL(mtd)) {
+		put_mtd_device(mtd);
+
+		ret = mount_ubi(mtd, false);
+		if (ret)
+			return ret;
+
+		ret = read_ubi_volume(name, (void *)data_load_addr, 0);
+		if (ret)
+			return ret;
+
+		if (!do_boot)
+			return 0;
+
+		return boot_from_mem(data_load_addr);
+	}
+
+	return -ENODEV;
+}
+
 static inline bool is_blank_char(int ch)
 {
 	return ch == '\t' || ch == '\n' || ch == '\r' || ch == ' ';
@@ -1702,4 +1818,87 @@ void mtd_boot_set_defaults(void *fdt)
 	if (ubi_image_vol)
 		rootdisk_set_rootfs_ubi_relax(fdt, ubi_image_vol);
 #endif
+}
+
+int mtd_verify_linux_fdt(void *fdt)
+{
+	int ubi_partition_count = 0, partitions_node = -1;
+	bool uboot_is_nmbm = false, fdt_has_nmbm = false;
+	int nodeoffset, depth, len;
+	struct mtd_info *mtd_nmbm;
+	const void *prop;
+
+	if (!fdt)
+		return 0;
+
+	gen_mtd_probe_devices();
+	mtd_nmbm = get_mtd_device_nm("nmbm0");
+	if (!IS_ERR(mtd_nmbm)) {
+		uboot_is_nmbm = true;
+		put_mtd_device(mtd_nmbm);
+	}
+
+	nodeoffset = 0;
+	depth = 0;
+	while ((nodeoffset = fdt_next_node(fdt, nodeoffset, &depth)) >= 0) {
+		/* For kernel-6.6 and later on */
+		prop = fdt_getprop(fdt, nodeoffset, "mediatek,nmbm", &len);
+		if (prop)
+			fdt_has_nmbm = true;
+
+		prop = fdt_getprop(fdt, nodeoffset, "compatible", &len);
+		if (prop) {
+			/* To comply with kernel-5.4 */
+			if (strstr((const char *)prop, "generic,nmbm"))
+				fdt_has_nmbm = true;
+			if (strstr((const char *)prop, "fixed-partitions"))
+				partitions_node = nodeoffset;
+		}
+	}
+
+	/* Count UBI partitions (partitions with label = "ubi") */
+	if (partitions_node >= 0) {
+		int child;
+		fdt_for_each_subnode(child, fdt, partitions_node) {
+			prop = fdt_getprop(fdt, child, "label", &len);
+			if (prop && len > 0 && strncmp((const char *)prop, "ubi", len) == 0)
+				ubi_partition_count++;
+		}
+	}
+
+	pr_debug("\nFDT verification:\n");
+	pr_debug("  U-Boot type: %s\n", uboot_is_nmbm ? "NMBM" : "Full-UBI");
+	pr_debug("  FDT contains NMBM property: %s\n", fdt_has_nmbm ? "yes" : "no");
+	pr_debug("  UBI partitions count: %d\n", ubi_partition_count);
+
+	/* Check for duplicate UBI partitions (both overlays applied) */
+	if (ubi_partition_count > 1) {
+		printf("\n");
+		cprintln(ERROR, "*** FDT Error: Duplicate UBI partitions detected! ***");
+		printf("Found %d UBI partitions - this indicates both overlays were applied\n",
+		       ubi_partition_count);
+		printf("Do NOT overlay both NMBM and Full-UBI overlays together\n\n");
+		return -EINVAL;
+	}
+
+	/* Safety check: Prevent booting with mismatched FDT */
+	if (uboot_is_nmbm) {
+		if (!fdt_has_nmbm) {
+			printf("\n");
+			cprintln(ERROR, "*** FDT Mismatch! ***");
+			printf("NMBM U-Boot requires 'mediatek,nmbm' property in FDT\n");
+			printf("Please use kernel with NMBM overlay\n\n");
+			return -EINVAL;
+		}
+	} else {
+		if (fdt_has_nmbm) {
+			printf("\n");
+			cprintln(ERROR, "*** FDT Mismatch! ***");
+			printf("Full-UBI U-Boot detected 'mediatek,nmbm' property\n");
+			printf("Please use kernel with Full-UBI overlay\n\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }

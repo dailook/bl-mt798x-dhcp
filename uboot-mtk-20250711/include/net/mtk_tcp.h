@@ -69,4 +69,7 @@ void mtk_tcp_reset_all_conn(void);
 /* Return 1 if connection is in ESTABLISHED state */
 int mtk_tcp_conn_is_alive(const void *conn);
 
+/* Called periodically to check the TCP status & send packets */
+void mtk_tcp_periodic_check(void);
+
 #endif /* __NET_MTK_MTK_TCP_H__ */

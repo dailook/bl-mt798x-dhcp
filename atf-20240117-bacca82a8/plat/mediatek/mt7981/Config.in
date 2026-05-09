@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+#
+# Copyright (c) 2026 Yuzhii0718
+#
+# MT7981 platform-specific configurations
+#
+
+if _PLAT_MT7981
+
+choice
+	prompt "MT7981 ARMPLL frequency (MHz)"
+	depends on _PLAT_MT7981
+	default MT7981_ARMPLL_FREQ_1300
+
+config MT7981_ARMPLL_FREQ_1300
+	bool "1300 MHz (default)"
+config MT7981_ARMPLL_FREQ_1400
+	bool "1400 MHz"
+config MT7981_ARMPLL_FREQ_1500
+	bool "1500 MHz"
+config MT7981_ARMPLL_FREQ_1600
+	bool "1600 MHz"
+config MT7981_ARMPLL_FREQ_1700
+	bool "1700 MHz"
+config MT7981_ARMPLL_FREQ_1800
+	bool "1800 MHz"
+
+endchoice
+
+# Makefile/C option bridge for MT7981 ARMPLL frequency selection.
+config MT7981_ARMPLL_FREQ_MHZ
+	int
+	depends on _PLAT_MT7981
+	default 1300 if MT7981_ARMPLL_FREQ_1300
+	default 1400 if MT7981_ARMPLL_FREQ_1400
+	default 1500 if MT7981_ARMPLL_FREQ_1500
+	default 1600 if MT7981_ARMPLL_FREQ_1600
+	default 1700 if MT7981_ARMPLL_FREQ_1700
+	default 1800 if MT7981_ARMPLL_FREQ_1800
+
+endif # _PLAT_MT7981

@@ -90,6 +90,14 @@ int generic_mmc_boot_image(bool do_boot)
 	return mmc_boot_image(MMC_DEV_INDEX, do_boot);
 }
 
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mmc_boot_next_bl(bool do_boot)
+{
+	return boot_from_mmc_partition(MMC_DEV_INDEX, 0,
+				       CONFIG_MTK_NEXT_BL_NAME, do_boot);
+}
+#endif
+
 int generic_emmc_write_bl2(void *priv, const struct data_part_entry *dpe,
 			   const void *data, size_t size)
 {
@@ -277,6 +285,15 @@ int generic_mmc_write_emerg_fw(void *priv, const struct data_part_entry *dpe,
 				      CONFIG_MTK_DUAL_BOOT_EMERG_IMAGE_KERNEL_NAME,
 				      CONFIG_MTK_DUAL_BOOT_EMERG_IMAGE_ROOTFS_NAME);
 #endif
+}
+#endif
+
+#ifdef CONFIG_MTK_CHAINLOAD_BL
+int generic_mmc_write_next_bl(void *priv, const struct data_part_entry *dpe,
+			      const void *data, size_t size)
+{
+	return mmc_write_part(MMC_DEV_INDEX, 0, CONFIG_MTK_NEXT_BL_NAME, data,
+			      size, true);
 }
 #endif
 

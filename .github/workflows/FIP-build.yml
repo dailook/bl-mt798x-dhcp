@@ -1,6 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 #
-# This is free software, licensed under the MIT License.
-# See /LICENSE for more information.
+# Copyright (C) 2026 Yuzhii0718
+#
+# All rights reserved.
+#
+# This file is part of the project bl-mt798x-dhcpd
+# You may not use, copy, modify or distribute this file except in compliance with the license agreement.
 #
 name: FIP Build
 
@@ -14,10 +19,35 @@ on:
         default: 'cmcc_a10'
         type: string
       FIP_VERSION: 
-        description: 'FIP versions (comma-separated, e.g. 2022,2023,2024,2025/all)'
+        description: 'FIP version selection ("all" option is only for single model builds)'
         required: true
-        default: '2024'
-        type: string
+        default: '2025'
+        type: choice
+        options:
+          - 2025
+          - SP1
+          - SP2
+          - all
+      VARIANT:
+        description: 'Build variant ("all" option is only for single model builds)'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - ubootmod
+          - nonmbm
+          - openwrt
+          - all
+      EXTRA_OPTION:
+        description: 'Extra option'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - multi_layout
+          - dis_fixed_mtdparts
       REPO_URL:
         description: 'Source repository'
         required: true
@@ -26,32 +56,7 @@ on:
       REPO_BRANCH:
         description: 'Repository branch'
         required: true
-        default: 'master'
-        type: string
-      GPT_GEN:
-        description: 'Generate GPT table image'
-        required: false
-        default: false
-        type: boolean
-      GEN_BL2:
-        description: 'Generate BL2 binary(v22/23 ATF only)'
-        required: false
-        default: false
-        type: boolean
-      OC_BL2:
-        description: 'Build 1.6GHz BL2 by patch(Only mt7981)'
-        required: false
-        default: false
-        type: boolean
-      MULTI_LAYOUT:
-        description: 'Enable MULTI_LAYOUT(Only supported devices)'
-        required: false
-        default: false
-        type: boolean
-      CUSTOM_IP:
-        description: 'Custom default IP for DHCPD (e.g. 192.168.31.1)'
-        required: false
-        default: 'false'
+        default: 'auto'
         type: string
       ssh:
         description: 'SSH connection to Actions'
@@ -61,25 +66,29 @@ on:
         description: 'Free up disk space(build environment)'
         required: false
         default: 'false'
+        type: boolean
+      pub_release:
+        description: 'Publish to GitHub Release'
+        required: false
+        default: 'true'
+        type: boolean
 #  schedule:
 #    - cron: 0 16 * * *
 
 env:
   UPLOAD_TAG_NAME: ${{ github.event.inputs.MODEL }}
   REPO_URL: ${{ github.event.inputs.REPO_URL }}
-  REPO_BRANCH: ${{ github.event.inputs.REPO_BRANCH }}
+  REPO_BRANCH_INPUT: ${{ github.event.inputs.REPO_BRANCH }}
+  FIP_VERSION_INPUT: ${{ github.event.inputs.FIP_VERSION || github.event.client_payload.FIP_VERSION || '2025' }}
   SSH_ACTIONS: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
   # ATF and U-Boot versions mapping/path
-  atf22: atf-20220606-637ba581b
-  uboot22: uboot-mtk-20220606
-  atf23: atf-20231013-0ea67d76a
-  uboot23: uboot-mtk-20230718-09eda825
   atf24: atf-20240117-bacca82a8
-  uboot25: uboot-mtk-20250711
   atf25: atf-20250711
+  atf26: atf-20260123
+  uboot25: uboot-mtk-20250711
 
 jobs:
   build:
@@ -93,28 +102,107 @@ jobs:
       contents: write
 
     steps:
-    - name: 检查项目分支
-      uses: actions/checkout@master
+    - name: Configuration check
+      shell: bash
+      run: |
+        set -euo pipefail
 
-    - name: 清理磁盘空间(local1)
+        VARIANT_IN="${{ github.event.inputs.VARIANT }}"
+        EXTRA_IN="${{ github.event.inputs.EXTRA_OPTION }}"
+        MODEL_IN="${{ github.event.inputs.MODEL }}"
+
+        case "$VARIANT_IN" in
+          default|all|ubootmod|nonmbm|openwrt) ;;
+          *)
+            echo "Error: invalid VARIANT: '$VARIANT_IN' (expected default/all/ubootmod/nonmbm/openwrt)" >&2
+            exit 1
+            ;;
+        esac
+        if [ "$VARIANT_IN" = "all" ] && [ "$MODEL_IN" = "all" ]; then
+          echo "Error: VARIANT=all is only supported for single-model builds (MODEL must not be 'all')." >&2
+          exit 1
+        fi
+
+
+        case "$EXTRA_IN" in
+          default|multi_layout|dis_fixed_mtdparts) ;;
+          *)
+            echo "Error: invalid EXTRA_OPTION: '$EXTRA_IN' (expected default/multi_layout/dis_fixed_mtdparts)" >&2
+            exit 1
+            ;;
+        esac
+
+        # Note: VARIANT is injected into build.sh only for uboot-2025 builds; EXTRA_OPTION applies to all versions
+        FIP_INPUT="$FIP_VERSION_INPUT"
+        FIP_INPUT="$(echo "$FIP_INPUT" | tr -d '\r' | sed -e 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        if [[ "$FIP_INPUT" =~ ^(.+)-(mt798[0-9]+)$ ]]; then
+          FIP_INPUT="${BASH_REMATCH[1]}"
+        fi
+        if [ "$FIP_INPUT" != "all" ]; then
+          if ! echo ",${FIP_INPUT}," | grep -Eq ',(SP1|SP2|2025)(,|$)'; then
+            if [ "$VARIANT_IN" != "default" ] || [ "$EXTRA_IN" != "default" ]; then
+              if [ "$VARIANT_IN" != "default" ]; then
+                echo "Note: current FIP_VERSION=$FIP_INPUT does not include SP1/SP2/2025; VARIANT will be ignored (EXTRA_OPTION still applies)."
+              fi
+            fi
+          fi
+        fi
+
+        if [ "$EXTRA_IN" = "multi_layout" ]; then
+          if [ "$VARIANT_IN" = "ubootmod" ] || [ "$VARIANT_IN" = "openwrt" ]; then
+            echo "Note: VARIANT=$VARIANT_IN does not support multi_layout; MULTI_LAYOUT will be forced off."
+          fi
+        fi
+
+        if [ "${{ github.event.inputs.pub_release }}" = "false" ]; then
+          echo "UPLOAD_RELEASE=false" >> $GITHUB_ENV
+        fi
+
+    - name: Clean disk space (local1)
       if: github.event.inputs.save_disk == 'true' && !cancelled()
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
 
-    - name: 初始化编译环境
+    - name: Checkout source
+      run: |
+        set -euo pipefail
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+        cd /workdir
+        df -hT $PWD
+
+        REPO_URL_IN="$REPO_URL"
+        REPO_BRANCH_IN="$REPO_BRANCH_INPUT"
+
+        # Auto-detect branch logic: if REPO_BRANCH=auto, use master
+        if [ -n "$REPO_BRANCH_IN" ] && [ "$REPO_BRANCH_IN" != "auto" ]; then
+          REPO_REF="$REPO_BRANCH_IN"
+        else
+          REPO_REF="master"
+        fi
+
+        echo "Using source: $REPO_URL_IN (ref: $REPO_REF)"
+        git clone --depth 1 --branch "$REPO_REF" "$REPO_URL_IN" bl-mt798x-dhcpd
+
+        SOURCE_SHA="$(git -C bl-mt798x-dhcpd rev-parse HEAD)"
+        echo "REPO_BRANCH=$REPO_REF" >> "$GITHUB_ENV"
+        echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+        ln -sf /workdir/bl-mt798x-dhcpd $GITHUB_WORKSPACE/bl-mt798x-dhcpd
+
+    - name: Initialize build environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/depends/${{ matrix.os }})
-        sudo -E apt-get -qq install rename
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/bl-mt798x-dhcpd/depends/${{ matrix.os }})
+        sudo -E apt-get -qq install rename tar
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: 清理磁盘空间(local2)
+    - name: Clean disk space (local2)
       if: github.event.inputs.save_disk == 'true' && !cancelled()
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -122,7 +210,7 @@ jobs:
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
 
-    - name: 清理磁盘空间(plugin)
+    - name: Clean disk space (plugin)
       if: github.event.inputs.save_disk == 'true' && !cancelled()
       uses: jlumbroso/free-disk-space@main
       with:
@@ -138,58 +226,43 @@ jobs:
         large-packages: false
         swap-storage: false
 
-    - name: 下载源码
-      working-directory: /workdir
-      run: |
-        df -hT $PWD
-        git clone $REPO_URL -b $REPO_BRANCH bl-mt798x-dhcpd
-        ln -sf /workdir/bl-mt798x-dhcpd $GITHUB_WORKSPACE/bl-mt798x-dhcpd
-
-    - name: SSH链接管理
+    - name: SSH connection management
       uses: P3TERX/ssh2actions@v1.0.0
       if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
       env:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
-    - name: 解析 FIP 版本输入
-      run: |
-        IFS=',' read -ra VERSIONS <<< "${{ github.event.inputs.FIP_VERSION }}"
-        echo "解析到的版本如下："
-        for version in "${VERSIONS[@]}"; do
-          echo "Processing version: $version"
-        done
-
-    - name: 解析机型列表
+    - name: Parse model lists
       run: |
         set -euo pipefail
         cd bl-mt798x-dhcpd
         mkdir -p model_lists
 
-        FIP_INPUT="${{ github.event.inputs.FIP_VERSION }}"
+        FIP_INPUT="$FIP_VERSION_INPUT"
+        FIP_INPUT="$(echo "$FIP_INPUT" | tr -d '\r' | sed -e 's/^[[:space:]]*//;s/[[:space:]]*$//')"
         SOC_FILTER=""
         if [[ "$FIP_INPUT" =~ ^(.+)-(mt798[0-9]+)$ ]]; then
           FIP_INPUT="${BASH_REMATCH[1]}"
           SOC_FILTER="${BASH_REMATCH[2]}"
-          echo "检测到平台限定：$SOC_FILTER（将仅生成该平台机型列表）"
+          echo "Detected platform filter: $SOC_FILTER (will only generate model lists for that platform)"
         fi
 
-        # 解析需要编译的版本列表
+        # Parse the list of versions to process based on FIP_INPUT
         if [ "$FIP_INPUT" = "all" ]; then
-          SUPPORTED_VERSIONS=("2022" "2023" "2024" "2025")
-          echo "检测到 all，将解析：${SUPPORTED_VERSIONS[*]}"
+          SUPPORTED_VERSIONS=("SP1" "SP2" "2025")
+          echo "Detected 'all', will parse: ${SUPPORTED_VERSIONS[*]}"
         else
           IFS=',' read -ra SUPPORTED_VERSIONS <<< "$FIP_INPUT"
-          echo "将按选择解析：${SUPPORTED_VERSIONS[*]}"
+          echo "Will parse selected: ${SUPPORTED_VERSIONS[*]}"
         fi
 
         version_to_dirs() {
           local v="$1"
           case "$v" in
-            2022) echo "${{ env.atf22 }}" "${{ env.uboot22 }}" ;;
-            2023) echo "${{ env.atf23 }}" "${{ env.uboot23 }}" ;;
-            2024) echo "${{ env.atf24 }}" "${{ env.uboot23 }}" ;;
             2025) echo "${{ env.atf25 }}" "${{ env.uboot25 }}" ;;
+            SP1) echo "${{ env.atf24 }}" "${{ env.uboot25 }}" ;;
+            SP2) echo "${{ env.atf26 }}" "${{ env.uboot25 }}" ;;
             *) echo "" "" ;;
           esac
         }
@@ -239,137 +312,57 @@ jobs:
           fi
           models=$(collect_models "$ATF_DIR" "$UBOOT_DIR" || true)
           if [ -z "$models" ]; then
-            echo "未找到可用机型（$version）：缺少 ATF/UBoot defconfig 交集，跳过"
+            echo "No available models found for $version: missing ATF/UBoot defconfig intersection, skipping"
             continue
           fi
           if [ -n "$SOC_FILTER" ]; then
             models=$(echo "$models" | grep -E "^${SOC_FILTER}_" || true)
             if [ -z "$models" ]; then
-              echo "平台 $SOC_FILTER 在 $version 版本无可用机型，跳过"
+              echo "Platform $SOC_FILTER has no available models in $version, skipping"
               continue
             fi
           fi
           list_file="model_lists/model_list_${version}.txt"
           echo "$models" | sort -u > "$list_file"
-          echo "已生成机型列表：$list_file"
+          echo "Generated model list: $list_file"
+        done
+
+        echo "Generated model list files:"
+        ls -l model_lists/
+        for f in model_lists/model_list_*.txt; do
+          echo "List contents - $f:"
+          cat "$f" || echo "(empty)"
         done
 
         echo "MODEL_LIST_DIR=$PWD/model_lists" >> $GITHUB_ENV
         echo "MODEL_LIST_READY=1" >> $GITHUB_ENV
 
-    - name: 应用特殊网段到 U-Boot DHCPD
-      if: github.event.inputs.CUSTOM_IP != 'false' && !cancelled()
-      shell: bash
-      run: |
-        set -euo pipefail
-        cd bl-mt798x-dhcpd
-
-        CUSTOM_IP="${{ github.event.inputs.CUSTOM_IP }}"
-        if [ "$CUSTOM_IP" = "false" ] || [ -z "$CUSTOM_IP" ]; then
-          echo "未启用特殊网段（CUSTOM_IP=false 或未提供）"
-          exit 0
-        fi
-
-        # 简单 IPv4 校验（不校验每段的取值范围）
-        if ! echo "$CUSTOM_IP" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
-          echo "非法的 CUSTOM_IP: $CUSTOM_IP"
-          exit 1
-        fi
-
-        echo "将调整 DHCPD 配置："
-        echo "  CONFIG_MTK_DHCPD_USE_CONFIG_IP 默认值改为 n"
-
-        count=0
-        for f in uboot-mtk-*/net/Kconfig; do
-          if [ -f "$f" ]; then
-            sed -i -E \
-              -e '/^config[[:space:]]+MTK_DHCPD_USE_CONFIG_IP$/,/^config[[:space:]]+/ s/^\tdefault[[:space:]]+y$/\tdefault n/' \
-              "$f"
-            echo "Patched: $f"
-            count=$((count+1))
-          fi
-        done
-
-        if [ "$count" -eq 0 ]; then
-          echo "Warning: 未找到 uboot-mtk-*/net/mtk_dhcpd.c 文件，跳过替换"
-        fi
-
-        echo "CUSTOM_NET=1" >> $GITHUB_ENV
-        echo "CUSTOM_NET_IP=${CUSTOM_IP}" >> $GITHUB_ENV
-        echo "status=success" >> $GITHUB_OUTPUT
-
-    - name: ATF22/23 BL2 生成配置修正
-      if: github.event.inputs.GEN_BL2 == 'true' && !cancelled()
-      run: |
-        set -euo pipefail
-        cd bl-mt798x-dhcpd
-
-        MODEL="${{ github.event.inputs.MODEL }}"
-        DEFCONF="mt7981_${MODEL}_defconfig"
-
-        try_patch_defconfig() {
-          local path="$1"
-          if [ -f "$path" ]; then
-            if grep -q '^CONFIG_TARGET_FIP_NO_SEC_BOOT=y$' "$path"; then
-              sed -i 's/^CONFIG_TARGET_FIP_NO_SEC_BOOT=y$/CONFIG_TARGET_ALL_NO_SEC_BOOT=y/' "$path"
-              echo "Patched: $path"
-            else
-              echo "Skip (no target line): $path"
-            fi
-            return 0
-          fi
-          return 1
-        }
-
-        # 针对22、23 ATF版本修正defconfig
-        for atf_dir in "${{ env.atf22 }}" "${{ env.atf23 }}"; do
-          echo "Checking ATF dir: $atf_dir"
-          if try_patch_defconfig "${atf_dir}/configs/${DEFCONF}"; then
-            echo "Successfully patched defconfig file: ${atf_dir}/configs/${DEFCONF}"
-          else
-            echo "Warning: defconfig not found for $atf_dir (searched configs/, atf/configs/)"
-          fi
-        done
-        echo "status=success" >> $GITHUB_OUTPUT
-        echo "GEN_BL2=1" >> $GITHUB_ENV
-
-    - name: 应用 mt7981 BL2 超频补丁
-      if: github.event.inputs.OC_BL2 == 'true' && !cancelled()
-      run: |
-        cd bl-mt798x-dhcpd
-        git apply modify-patch/0001-overclocking-mt7981-to-1.6GHz-by-modify-atf.patch
-        echo "status=success" >> $GITHUB_OUTPUT
-        echo "OC_BL2=1" >> $GITHUB_ENV
-
-    - name: 编译 FIP
+    - name: Build FIP
       id: compile
       run: |
         cd bl-mt798x-dhcpd
         chmod +x ./build.sh
         mkdir -p output
 
-        # MULTI_LAYOUT 开关
-        if [ "${{ github.event.inputs.MULTI_LAYOUT }}" = "true" ]; then
-          echo "已启用 MULTI_LAYOUT=1"
-        else
-          echo "未启用 MULTI_LAYOUT"
-        fi
+        VARIANT_INPUT="${{ github.event.inputs.VARIANT }}"
+        EXTRA_INPUT="${{ github.event.inputs.EXTRA_OPTION }}"
         
-        FIP_INPUT="${{ github.event.inputs.FIP_VERSION }}"
+        FIP_INPUT="$FIP_VERSION_INPUT"
+        FIP_INPUT="$(echo "$FIP_INPUT" | tr -d '\r' | sed -e 's/^[[:space:]]*//;s/[[:space:]]*$//')"
         SOC_FILTER=""
         if [[ "$FIP_INPUT" =~ ^(.+)-(mt798[0-9]+)$ ]]; then
           FIP_INPUT="${BASH_REMATCH[1]}"
           SOC_FILTER="${BASH_REMATCH[2]}"
-          echo "检测到平台限定：$SOC_FILTER（将仅编译该平台机型）"
+          echo "Detected platform filter: $SOC_FILTER (will only build models for that platform)"
         fi
 
-        # 解析需要编译的版本列表
+        # Parse the list of versions to process based on FIP_INPUT
         if [ "$FIP_INPUT" = "all" ]; then
-          SUPPORTED_VERSIONS=("2022" "2023" "2024" "2025")
-          echo "检测到 all，将编译：${SUPPORTED_VERSIONS[*]}"
+          SUPPORTED_VERSIONS=("SP1" "SP2" "2025")
+          echo "Detected 'all', will build: ${SUPPORTED_VERSIONS[*]}"
         else
           IFS=',' read -ra SUPPORTED_VERSIONS <<< "$FIP_INPUT"
-          echo "将按选择编译：${SUPPORTED_VERSIONS[*]}"
+          echo "Will build selected: ${SUPPORTED_VERSIONS[*]}"
         fi
 
         MODEL_INPUT="${{ github.event.inputs.MODEL }}"
@@ -378,35 +371,35 @@ jobs:
           if [ -z "$SOC_FILTER" ]; then
             SOC_FILTER="${BASH_REMATCH[1]}"
           fi
-          echo "检测到机型输入包含平台限定：$SOC_FILTER（MODEL=all-mt798x）"
+          echo "Detected model input with platform filter: $SOC_FILTER (MODEL=all-mt798x)"
         fi
 
-        # 逐版本编译并缓存到各自临时目录
+        # Compile each version and cache outputs in separate temp directories
         for version in "${SUPPORTED_VERSIONS[@]}"; do
-          echo "正在准备${version}版本FIP..."
+          echo "Preparing FIP for version ${version}..."
           list_file="model_lists/model_list_${version}.txt"
           if [ ! -s "$list_file" ]; then
-            echo "未找到机型列表文件（$list_file），跳过 $version"
+            echo "Model list file not found ($list_file), skipping $version"
             continue
           fi
           models=$(cat "$list_file" || true)
           if [ -z "$models" ]; then
-            echo "机型列表为空（$version），跳过"
+            echo "Model list empty ($version), skipping"
             continue
           fi
           if [ -n "$SOC_FILTER" ]; then
             models=$(echo "$models" | grep -E "^${SOC_FILTER}_" || true)
             if [ -z "$models" ]; then
-              echo "平台 $SOC_FILTER 在 $version 版本无可用机型，跳过"
+              echo "Platform $SOC_FILTER has no available models in $version, skipping"
               continue
             fi
           fi
 
-          echo "${version}版本可用机型："
+          echo "Available models for ${version}:"
           echo "$models" | tr '\n' ' '
           echo
 
-          # 选择需要编译的机型（models 格式：mt798x_model）
+          # Compile all if MODEL_INPUT=all, otherwise filter by model name suffix
           if [ "$MODEL_INPUT" = "all" ]; then
             BUILD_MODELS="$models"
           else
@@ -419,25 +412,56 @@ jobs:
               fi
             done <<< "$models"
             if [ -z "$BUILD_MODELS" ]; then
-              echo "机型 $MODEL_INPUT 在 $version 版本缺少 ATF/UBoot defconfig，跳过"
+              echo "Model $MODEL_INPUT not found in version $version, skipping"
               continue
             fi
           fi
 
-          for entry in $BUILD_MODELS; do
-            soc="${entry%%_*}"
-            model_name="${entry#*_}"
-            echo "正在编译${version}版本FIP（SOC：$soc，机型：$model_name）..."
-            if [ "${{ github.event.inputs.MULTI_LAYOUT }}" = "true" ]; then
-              SOC="$soc" BOARD="$model_name" VERSION=${version} MULTI_LAYOUT=1 ./build.sh 2>&1 | tee "output/build-${soc}-${model_name}-${version}.log"
-              build_rc=${PIPESTATUS[0]}
+          # Decide variant list for this version (version priority first)
+          if [ "$version" = "2025" ] || [ "$version" = "SP1" ] || [ "$version" = "SP2" ]; then
+            if [ "$VARIANT_INPUT" = "all" ]; then
+              VARIANTS_TO_BUILD=(default ubootmod nonmbm openwrt)
             else
-              SOC="$soc" BOARD="$model_name" VERSION=${version} ./build.sh 2>&1 | tee "output/build-${soc}-${model_name}-${version}.log"
+              VARIANTS_TO_BUILD=($VARIANT_INPUT)
+            fi
+          else
+            VARIANTS_TO_BUILD=(default)
+          fi
+
+          for VARIANT in "${VARIANTS_TO_BUILD[@]}"; do
+            for entry in $BUILD_MODELS; do
+              soc="${entry%%_*}"
+              model_name="${entry#*_}"
+
+              # EXTRA_OPTION: effects all versions
+              case "$EXTRA_INPUT" in
+                default)
+                  MULTI_LAYOUT=0
+                  FIXED_MTDPARTS=1
+                  ;;
+                multi_layout)
+                  MULTI_LAYOUT=1
+                  FIXED_MTDPARTS=1
+                  ;;
+                dis_fixed_mtdparts)
+                  MULTI_LAYOUT=0
+                  FIXED_MTDPARTS=0
+                  ;;
+              esac
+
+              # variant ubootmod/openwrt does not support multi_layout
+              if [ "$VARIANT" = "ubootmod" ] || [ "$VARIANT" = "openwrt" ]; then
+                MULTI_LAYOUT=0
+              fi
+
+              echo "Building FIP for version ${version} (SOC: $soc, model: $model_name, variant: $VARIANT)..."
+              BOARD="$model_name" VERSION=${version} VARIANT="$VARIANT" MULTI_LAYOUT="$MULTI_LAYOUT" FIXED_MTDPARTS="$FIXED_MTDPARTS" SILENT=Y ./build.sh 2>&1 | tee "output/build-${soc}-${model_name}-${version}-${VARIANT}.log"
               build_rc=${PIPESTATUS[0]}
-            fi
-            if [ "$build_rc" -ne 0 ]; then
-              echo "编译失败：soc=$soc model=$model_name version=$version (rc=$build_rc)，继续下一个"
-            fi
+
+              if [ "$build_rc" -ne 0 ]; then
+                echo "Build failed: soc=$soc model=$model_name version=$version variant=$VARIANT (rc=$build_rc), continuing to next"
+              fi
+            done
           done
 
           mkdir -p "temp_output_${version}"
@@ -447,49 +471,32 @@ jobs:
           fi
         done
 
-        # 合并所有版本的输出到 output 目录
+        # Merge all version outputs into the output directory
         mkdir -p output
         for version in "${SUPPORTED_VERSIONS[@]}"; do
           cp -r "temp_output_${version}/"* output/ || true
         done
 
-        # 清理临时目录
+        # Clean up temp directories
         for version in "${SUPPORTED_VERSIONS[@]}"; do
           rm -rf "temp_output_${version}"
         done
         
         echo "FILE_DATE=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
-    
-    - name: 编译 GPT
-      if: github.event.inputs.GPT_GEN == 'true' && !cancelled()
-      run: |
-        cd bl-mt798x-dhcpd
-        chmod +x ./generate_gpt.sh
-        ./generate_gpt.sh
-        echo "status=success" >> $GITHUB_OUTPUT
-        echo "GPT=1" >> $GITHUB_ENV
 
-    - name: 查看磁盘使用情况
+    - name: Show disk usage
       if: (!cancelled())
       run: df -hT
 
-    - name: 整理文件并重命名
+    - name: Organize files and rename
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: | 
         cd bl-mt798x-dhcpd
-        # 获取当前时间戳
+        # Get current timestamp
         TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-        # 重命名 OC_BL2
-        if [ "${{ env.OC_BL2 }}" = "1" ]; then
-          for file in output/*; do
-            if [[ "$file" == *"mt7981"* && "$file" == *"bl2.bin"* ]]; then
-              mv "$file" "${file%.bin}_oc1.6GHz.bin"
-            fi
-          done
-        fi
-        # 标注特殊网段（先追加 _customnet 后缀，再追加时间戳）
+        # Mark custom subnet (append _customnet suffix, then timestamp)
         if [ "${{ env.CUSTOM_NET }}" = "1" ]; then
           for dir in output output_gpt; do
             if [ -d "$dir" ]; then
@@ -500,15 +507,15 @@ jobs:
             fi
           done
         fi
-        # 重命名 output 目录下的文件
+        # Rename files in output directory
         if [ -d "output" ]; then
           rename "s/(.*)\.(.*)/\$1_${TIMESTAMP}.\$2/" output/*
         fi
-        # 重命名 output_gpt 目录下的文件
+        # Rename files in output_gpt directory
         if [ -d "output_gpt" ]; then
           rename "s/(.*)\.(.*)/\$1_${TIMESTAMP}.\$2/" output_gpt/*
         fi
-        # 移动文件到指定目录（包含二进制、日志、GPT、机型列表）
+        # Move files to upload directory (binaries, logs, GPT, model lists)
         mkdir -p upload
         if [ -d "output" ]; then
           cp -r output/* upload/ || true
@@ -519,14 +526,17 @@ jobs:
         if [ -d "model_lists" ]; then
           cp -r model_lists/* upload/ || true
         fi
-        # 如果存在编译日志（output/build-*.log），确保被包含
-        if ls output/build-*.log >/dev/null 2>&1; then
-          cp -f output/build-*.log upload/ || true
+
+        # Compress all logs into a single tar.gz and remove original logs
+        if ls upload/build-*.log >/dev/null 2>&1; then
+          tar -czf upload/build-logs_${TIMESTAMP}.tar.gz upload/build-*.log
+          rm -f upload/build-*.log
         fi
+
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
-    - name: 打包上传固件到Actions Artifacts
+    - name: Upload artifacts to Actions
       uses: actions/upload-artifact@main
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
@@ -534,55 +544,54 @@ jobs:
         path: |
           bl-mt798x-dhcpd/upload/*
 
-    - name: 生成固件Release标签
+    - name: Generate release notes
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         touch release.txt
-        echo "- 适配机型：${{ env.UPLOAD_TAG_NAME }}" >> release.txt
-        echo "- 使用源码：${{ env.REPO_URL }}" >> release.txt
-        echo "- 使用分支：${{ env.REPO_BRANCH }}" >> release.txt
-        echo "- 使用版本：${{ github.event.inputs.FIP_VERSION }}" >> release.txt
-        if [ "${{ github.event.inputs.MULTI_LAYOUT }}" = "true" ]; then
-          echo "- 已启用 MULTI_LAYOUT=1" >> release.txt
+
+        echo "- Commit: ${{ env.SOURCE_SHA }}" >> release.txt
+        echo "- Target models: ${{ env.UPLOAD_TAG_NAME }}" >> release.txt
+        echo "- Source repo: ${{ env.REPO_URL }}" >> release.txt
+        echo "- Branch: ${{ env.REPO_BRANCH }}" >> release.txt
+        echo "- Versions: $FIP_VERSION_INPUT" >> release.txt
+
+        echo "- Extra options: ${{ github.event.inputs.EXTRA_OPTION }}" >> release.txt
+
+        if [ "${{ github.event.inputs.VARIANT }}" = "all" ]; then
+          echo "- Enabled ALL variants (default/ubootmod/nonmbm/openwrt)" >> release.txt
+        elif [ "${{ github.event.inputs.VARIANT }}" = "nonmbm" ]; then
+          echo "- Enabled NONMBM variant" >> release.txt
+        elif [ "${{ github.event.inputs.VARIANT }}" = "ubootmod" ]; then
+          echo "- Enabled UBOOTMOD variant" >> release.txt
+        elif [ "${{ github.event.inputs.VARIANT }}" = "openwrt" ]; then
+          echo "- Enabled OPENWRT variant" >> release.txt
+          echo "- OPENWRT variant with **NO failsafe WEB UI**" >> release.txt
+          echo "- YOU NEED UPGRADE WITH TFTP METHOD" >> release.txt
         else
-          echo "- 未启用 MULTI_LAYOUT" >> release.txt
+          echo "- Using DEFAULT variant" >> release.txt
         fi
-        if [ "${{ github.event.inputs.GEN_BL2 }}" = "true" ]; then
-          echo "- 已开启 ATF22/23 BL2 生成" >> release.txt
-        else
-          echo "- 未开启 ATF22/23 BL2 生成" >> release.txt
-        fi
-        if [ "${{ github.event.inputs.OC_BL2 }}" = "true" ]; then
-          echo "- 已应用1.6GHz BL2超频补丁" >> release.txt
-        else
-          echo "- 未应用1.6GHz BL2超频补丁" >> release.txt
-        fi
-        CUSTOM_IP="${{ github.event.inputs.CUSTOM_IP }}"
-        if [ "$CUSTOM_IP" != "false" ] && [ -n "$CUSTOM_IP" ]; then
-          if echo "$CUSTOM_IP"; then
-            echo "- 已应用特殊网段：$CUSTOM_IP" >> release.txt
-          else
-            echo "- 特殊网段输入无效（CUSTOM_IP=$CUSTOM_IP），已保持默认网段192.168.1.1" >> release.txt
-          fi
-        else
-          echo "- 保持默认网段192.168.1.1" >> release.txt
-        fi
-        if [ "${{ github.event.inputs.GPT_GEN }}" = "true" ]; then
-          echo "- 已生成GPT分区表镜像" >> release.txt
-        else
-          echo "- 未生成GPT分区表镜像" >> release.txt
+
+        if [ "${{ github.event.inputs.EXTRA_OPTION }}" = "dis_fixed_mtdparts" ]; then
+          echo "- FIXED_MTDPARTS disabled" >> release.txt
+        elif [ "${{ github.event.inputs.EXTRA_OPTION }}" = "multi_layout" ]; then
+          echo "- MULTI_LAYOUT enabled" >> release.txt
         fi
         if [ "${{ github.event.inputs.MODEL }}" = "all" ]; then
-          echo "- 已输出各版本机型列表文件（MODEL=all）" >> release.txt
+          echo "- Model list files for each version output (MODEL=all)" >> release.txt
         fi
-        echo "- 编译时间：${{ env.FILE_DATE }}" >> release.txt
+        echo "- Build time: ${{ env.FILE_DATE }}" >> release.txt
+
+        echo "" >> release.txt
+        echo "---" >> release.txt
+        echo "" >> release.txt
+        echo "**PLEASE SEE THE README FOR USAGE INSTRUCTIONS AND DISCLAIMERS.**" >> release.txt
         echo "release_tag=${{ env.FILE_DATE }}-${{ env.UPLOAD_TAG_NAME }}" >> $GITHUB_OUTPUT
         echo "status=success" >> $GITHUB_OUTPUT
 
-    - name: 发布固件至Release
+    - name: Publish to GitHub Release
       uses: softprops/action-gh-release@v2.1.0
-      if: steps.tag.outputs.status == 'success' && !cancelled()
+      if: steps.tag.outputs.status == 'success' && !cancelled() && env.UPLOAD_RELEASE == 'true'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:

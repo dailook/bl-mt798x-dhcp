@@ -17,6 +17,50 @@
 #include "upgrade_helper.h"
 #include "autoboot_helper.h"
 
+#ifdef CONFIG_MEDIATEK_MULTI_MTD_LAYOUT
+const char *get_mtd_layout_label(void);
+
+static void mtkupgrade_sync_mtd_layout_env(void)
+{
+	const char *layout_label, *legacy_label, *public_label;
+	int need_save = 0;
+
+	layout_label = get_mtd_layout_label();
+	if (!layout_label || !layout_label[0])
+		return;
+
+	public_label = env_get("mtd_layout");
+	legacy_label = env_get("mtd_layout_label");
+
+	if (!public_label || strcmp(public_label, layout_label)) {
+		env_set("mtd_layout", layout_label);
+		need_save = 1;
+	}
+
+	if (!legacy_label || strcmp(legacy_label, layout_label)) {
+		env_set("mtd_layout_label", layout_label);
+		need_save = 1;
+	}
+
+	if (env_get("mtdids")) {
+		env_set("mtdids", NULL);
+		need_save = 1;
+	}
+
+	if (env_get("mtdparts")) {
+		env_set("mtdparts", NULL);
+		need_save = 1;
+	}
+
+	if (need_save) {
+		if (!env_save())
+			printf("Synced MTD layout env: %s\n", layout_label);
+		else
+			printf("Warning: failed to save MTD layout env\n");
+	}
+}
+#endif
+
 static const struct data_part_entry *upgrade_parts;
 static u32 num_parts;
 
@@ -139,6 +183,12 @@ static int do_mtkupgrade(struct cmd_tbl *cmdtp, int flag, int argc,
 	cprintln(PROMPT, "*** Upgrading %s ***", dpe->name);
 	printf("\n");
 
+#ifdef CONFIG_MEDIATEK_MULTI_MTD_LAYOUT
+	/* Avoid stale partition map in current session */
+	env_set("mtdids", NULL);
+	env_set("mtdparts", NULL);
+#endif
+
 	do_action = prompt_post_action(dpe);
 
 	/* Set load address */
@@ -165,6 +215,10 @@ static int do_mtkupgrade(struct cmd_tbl *cmdtp, int flag, int argc,
 	/* Write data */
 	if (dpe->write(dpe->priv, dpe, (void *)data_load_addr, data_size))
 		return CMD_RET_FAILURE;
+
+#ifdef CONFIG_MEDIATEK_MULTI_MTD_LAYOUT
+	mtkupgrade_sync_mtd_layout_env();
+#endif
 
 	printf("\n");
 	cprintln(PROMPT, "*** %s upgrade completed! ***", dpe->name);

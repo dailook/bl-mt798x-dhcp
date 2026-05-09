@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+#
+# Copyright (c) 2026 Yuzhii0718
+#
+# MT7629 platform-specific configurations
+#
+
+if _PLAT_MT7629
+
+choice
+	prompt "MT7629 ARMPLL frequency (MHz)"
+	depends on _PLAT_MT7629
+	default MT7629_ARMPLL_FREQ_1200
+
+config MT7629_ARMPLL_FREQ_1200
+	bool "1200 MHz (default)"
+config MT7629_ARMPLL_FREQ_1250
+	bool "1250 MHz"
+config MT7629_ARMPLL_FREQ_1300
+	bool "1300 MHz"
+config MT7629_ARMPLL_FREQ_1350
+	bool "1350 MHz"
+config MT7629_ARMPLL_FREQ_1400
+	bool "1400 MHz"
+config MT7629_ARMPLL_FREQ_1450
+	bool "1450 MHz"
+config MT7629_ARMPLL_FREQ_1500
+	bool "1500 MHz"
+
+endchoice
+
+# Makefile/C option bridge for MT7629 ARMPLL frequency selection.
+config MT7629_ARMPLL_FREQ_MHZ
+	int
+	depends on _PLAT_MT7629
+	default 1200 if MT7629_ARMPLL_FREQ_1200
+	default 1250 if MT7629_ARMPLL_FREQ_1250
+	default 1300 if MT7629_ARMPLL_FREQ_1300
+	default 1350 if MT7629_ARMPLL_FREQ_1350
+	default 1400 if MT7629_ARMPLL_FREQ_1400
+	default 1450 if MT7629_ARMPLL_FREQ_1450
+	default 1500 if MT7629_ARMPLL_FREQ_1500
+
+endif # _PLAT_MT7629

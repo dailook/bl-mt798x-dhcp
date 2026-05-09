@@ -5,6 +5,7 @@
  */
 
 #include <drivers/delay_timer.h>
+#include <common/debug.h>
 #include <lib/mmio.h>
 #include <mcucfg.h>
 #include <platform_def.h>
@@ -13,8 +14,57 @@
 
 #define aor(v, a, o)			(((v) & (a)) | (o))
 
+#ifndef MT7629_ARMPLL_FREQ_MHZ
+#define MT7629_ARMPLL_FREQ_MHZ		1200U
+#endif
+
+/*
+ * MT7629 ARMPLL frequency programming:
+ * - The target CPU frequency is selected at build time via
+ *   MT7629_ARMPLL_FREQ_MHZ.
+ * - This platform supports 50MHz steps, from 1200MHz to 1500MHz.
+ * - ARMPLL_CON1 uses a Q16 PCW field with a 40MHz reference clock.
+ * - The effective formula is:
+ *
+ *     Fcpu(MHz) = PCW * 40 / 2^16
+ *
+ *   so we program:
+ *
+ *     PCW = Fcpu(MHz) * 2^16 / 40
+ *
+ *   and keep the fixed control bits in the upper byte of ARMPLL_CON1.
+ *
+ * Examples:
+ *   - 1200MHz -> PCW = 0x001e0000 -> ARMPLL_CON1 = 0x811e0000
+ *   - 1250MHz -> PCW = 0x001f4000 -> ARMPLL_CON1 = 0x811f4000
+ *   - 1300MHz -> PCW = 0x00208000 -> ARMPLL_CON1 = 0x81208000
+ *   - 1350MHz -> PCW = 0x0021c000 -> ARMPLL_CON1 = 0x8121c000
+ *   - 1400MHz -> PCW = 0x00230000 -> ARMPLL_CON1 = 0x81230000
+ *   - 1450MHz -> PCW = 0x00244000 -> ARMPLL_CON1 = 0x81244000
+ *   - 1500MHz -> PCW = 0x00258000 -> ARMPLL_CON1 = 0x81258000
+ *
+ * Each +50MHz step increases PCW by 0x00014000.
+ */
+
+#define MT7629_ARMPLL_REF_CLK_MHZ	40U
+#define MT7629_ARMPLL_CON1_BASE		0x81000000U
+#define ARMPLL_PCW_FROM_MHZ(_mhz) \
+	(((uint32_t)(_mhz) * 65536U) / MT7629_ARMPLL_REF_CLK_MHZ)
+
+#if (MT7629_ARMPLL_FREQ_MHZ != 1200U) && \
+	(MT7629_ARMPLL_FREQ_MHZ != 1250U) && \
+	(MT7629_ARMPLL_FREQ_MHZ != 1300U) && \
+	(MT7629_ARMPLL_FREQ_MHZ != 1350U) && \
+	(MT7629_ARMPLL_FREQ_MHZ != 1400U) && \
+	(MT7629_ARMPLL_FREQ_MHZ != 1450U) && \
+	(MT7629_ARMPLL_FREQ_MHZ != 1500U)
+#error "MT7629_ARMPLL_FREQ_MHZ must be one of: 1200, 1250, 1300, 1350, 1400, 1450, 1500"
+#endif
+
 void mtk_pll_init(void)
 {
+	uint32_t armpll_con1;
+
 	/* Reduce CLKSQ disable time */
 	mmio_write_32(CLKSQ_STB_CON0, 0x98940501);
 
@@ -41,8 +91,14 @@ void mtk_pll_init(void)
 	mmio_clrbits_32(ETH2PLL_PWR_CON0, CON0_ISO_EN);
 	mmio_clrbits_32(SGMIPLL_PWR_CON0, CON0_ISO_EN);
 
+	NOTICE("MT7629 build cfg: MT7629_ARMPLL_FREQ_MHZ=%u\n",
+		MT7629_ARMPLL_FREQ_MHZ);
+
 	/* Set PLL frequency */
-	mmio_write_32(ARMPLL_CON1, 0x811e0000);		// 1200MHz
+	armpll_con1 = MT7629_ARMPLL_CON1_BASE | ARMPLL_PCW_FROM_MHZ(MT7629_ARMPLL_FREQ_MHZ);
+	mmio_write_32(ARMPLL_CON1, armpll_con1);
+	NOTICE("MT7629 ARMPLL_CON1=0x%x (%u MHz)\n",
+		mmio_read_32(ARMPLL_CON1), MT7629_ARMPLL_FREQ_MHZ);
 	mmio_write_32(MAINPLL_CON1, 0x811c0000);	// 1120MHz
 	mmio_write_32(UNIVPLL_CON1, 0x801e0000);	// 1200MHz
 	mmio_write_32(ETH1PLL_CON1, 0x80190000);	// 500MHz

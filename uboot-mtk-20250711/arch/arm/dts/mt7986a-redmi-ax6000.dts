@@ -10,20 +10,6 @@
 	model = "mt7986-redmi-ax6000";
 	compatible = "mediatek,mt7986", "mediatek,mt7986-rfb", "mt7986-redmi-ax6000";
 
-	chosen {
-		stdout-path = &uart0;
-		tick-timer = &timer0;
-	};
-
-	config {
-		bootcmd = "mtkboardboot";
-	};
-
-	memory@40000000 {
-		device_type = "memory";
-		reg = <0x40000000 0x20000000>;
-	};
-
 	mtd-layout {
 		layout@0 {
 			label = "default";
@@ -43,6 +29,20 @@
 			mtdids = "nmbm0=nmbm0";
 			mtdparts = "nmbm0:1024k(bl2),256k(Nvram),256k(Bdata),2048k(factory),2048k(fip),256k(crash),256k(crash_log),110m(ubi)";
 		};
+	};
+
+	chosen {
+		stdout-path = &uart0;
+		tick-timer = &timer0;
+	};
+
+	config {
+		bootcmd = "mtkboardboot";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x20000000>;
 	};
 
 	gpio-keys {

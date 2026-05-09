@@ -1,0 +1,47 @@
+bootcmd=run boot_system
+boot_default=if env exists flag_recover ; then else run bootcmd ; fi ; run boot_tftp_forever
+bootdelay=0
+bootfile_bl2=openwrt-mediatek-filogic-glinet_gl-mt2500-emmc-preloader.bin
+bootfile_fip=openwrt-mediatek-filogic-glinet_gl-mt2500-emmc-bl31-uboot.fip
+bootfile_firmware=openwrt-mediatek-filogic-glinet_gl-mt2500-squashfs-factory.bin
+bootfile=openwrt-mediatek-filogic-glinet_gl-mt2500-initramfs-kernel.bin
+boot_first=if button reset ; then run boot_tftp ; setenv flag_recover 1 ; run boot_default ; fi ; bootmenu
+bootmenu_0d=Run default boot command.=run boot_default
+bootmenu_0=Initialize environment.=run _firstboot
+bootmenu_1=Boot system from eMMC.=run boot_system
+bootmenu_2=Load Firmware via TFTP then write to eMMC.=run load_tftp_firmware ; run bootmenu_confirm_return
+bootmenu_3=Boot system via TFTP.=run boot_tftp ; run bootmenu_confirm_return
+bootmenu_4=[31mLoad BL31+U-Boot FIP via TFTP then write to eMMC.[0m=run load_tftp_fip ; run bootmenu_confirm_return
+bootmenu_5=[31mLoad BL2 preloader via TFTP then write to eMMC.[0m=run load_tftp_bl2 ; run bootmenu_confirm_return
+bootmenu_6=Reboot.=reset
+bootmenu_7=Reset all settings to factory defaults.=run reset_factory ; run bootmenu_confirm_return
+bootmenu_confirm_return=askenv - Press ENTER to return to menu ; bootmenu 60
+bootmenu_title=      [0;34m( ( ( [1;39mOpenWrt[0;34m ) ) )[0m
+boot_system=part start mmc 0 kernel part_addr && part size mmc 0 kernel part_size && run mmc_read_kernel && bootm
+boot_tftp_forever=while true ; do run boot_tftp ; sleep 1 ; done
+boot_tftp=tftpboot $loadaddr $bootfile && bootm $loadaddr
+country_code_factory=setexpr macoffs $loadaddr + 0x88 ; env readmem country_code $macoffs 0x2 ; setenv country_code_factory ; setenv macoffs
+ddns_factory=setexpr macoffs $loadaddr + 0x10 ; env readmem ddns $macoffs 0x10 ; setenv ddns_factory ; setenv macoffs
+emmc_write_bl2=run filesize_to_blk && test 0x$cnt -le 0x800 && mmc partconf 0 1 1 1 && mmc write $loadaddr 0x0 0x800 ; mmc partconf 0 1 1 0
+emmc_write_fip=part start mmc 0 fip part_addr && part size mmc 0 fip part_size && run filesize_to_blk && test 0x$cnt -le 0x$part_size && mmc write $loadaddr $part_addr $cnt
+emmc_write_firmware=part start mmc 0 kernel part_addr && run filesize_to_blk && mmc write $loadaddr $part_addr $cnt
+env_cleanup=setenv load_factory_data ; setenv env_cleanup
+ethaddr_factory=setenv ethaddr $lan_mac ; setenv ethaddr_factory
+filesize_to_blk=setexpr cnt $filesize + 0x1ff && setexpr cnt $cnt / 0x200
+ipaddr=192.168.1.1
+lan_mac_factory=setexpr lan_mac_tmp gsub ":" "" 0x$wan_mac ; setexpr lan_mac_tmp $lan_mac_tmp + 1 ; setexpr lan_mac_tmp gsub "\\(..\\)" "\\\\1:" $lan_mac_tmp ; setexpr lan_mac fmt "%.17s" $lan_mac_tmp; setenv lan_mac_tmp ; setenv lan_mac_factory
+loadaddr=0x50000000
+load_factory_data=mmc dev 0 2 ; mmc read $loadaddr 0x0 0x100 ; mmc dev 0
+load_tftp_fip=tftpboot $loadaddr $bootfile_fip && run emmc_write_fip
+load_tftp_bl2=tftpboot $loadaddr $bootfile_bl2 && run emmc_write_bl2
+load_tftp_firmware=tftpboot $loadaddr $bootfile_firmware && run emmc_write_firmware
+mmc_read_kernel=mmc read $loadaddr $part_addr 0x100 && imszb $loadaddr image_size && test 0x$image_size -le 0x$part_size && mmc read $loadaddr $part_addr $image_size
+reset_factory=eraseenv && reset
+serverip=192.168.1.10
+sn_bak_factory=setexpr macoffs $loadaddr + 0x20 ; env readmem sn_bak $macoffs 0x10 ; setenv sn_bak_factory ; setenv macoffs
+sn_factory=setexpr macoffs $loadaddr + 0x30 ; env readmem sn $macoffs 0x10 ; setenv sn_factory ; setenv macoffs
+wan_mac_factory=setexpr macoffs $loadaddr + 0xa ; env readmem -b wan_mac $macoffs 0x6 ; setenv wan_mac_factory ; setenv macoffs
+_bootmenu_update_title=setenv _bootmenu_update_title ; setenv bootmenu_title "$bootmenu_title       [33m$ver[0m"
+_firstboot=setenv _firstboot ; run _switch_to_menu ; run load_factory_data ; run wan_mac_factory ; run lan_mac_factory ; run ddns_factory ; run sn_factory ; run sn_bak_factory ; run country_code_factory ; run env_cleanup ; run ethaddr_factory ; run _init_env ; run boot_first
+_init_env=setenv _init_env ; saveenv
+_switch_to_menu=setenv _switch_to_menu ; setenv bootdelay 3 ; setenv bootmenu_delay 3 ; setenv bootmenu_0 $bootmenu_0d ; setenv bootmenu_0d ; run _bootmenu_update_title

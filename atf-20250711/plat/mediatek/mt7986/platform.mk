@@ -22,10 +22,17 @@ MULTI_CONSOLE_API	:=	1
 
 RESET_TO_BL2		:=	1
 
+# MT7986 TRNG interface version: 1 for default.
+# set to 2 for new TRNG driver.
+MT7986_TRNG_VERSION ?= 1
+ifeq ($(filter 1 2,$(MT7986_TRNG_VERSION)),)
+$(error MT7986_TRNG_VERSION must be 1 or 2)
+endif
+
 PLAT_INCLUDES		:=	-I$(APSOC_COMMON)				\
 				-I$(APSOC_COMMON)/drivers/uart			\
 				-I$(APSOC_COMMON)/drivers/wdt			\
-				-I$(APSOC_COMMON)/drivers/trng/v1		\
+				-I$(APSOC_COMMON)/drivers/trng/v$(MT7986_TRNG_VERSION)	\
 				-Iinclude/plat/arm/common			\
 				-Iinclude/plat/arm/common/aarch64		\
 				-I$(MTK_PLAT_SOC)/drivers/dram			\
@@ -53,6 +60,12 @@ OPTEE_TZRAM_SIZE := 0x500000
 endif
 endif
 CPPFLAGS += -DOPTEE_TZRAM_SIZE=$(OPTEE_TZRAM_SIZE)
+
+# MT7986 ARMPLL target frequency (MHz): 2000 (default), 1600~2500.
+MT7986_ARMPLL_FREQ_MHZ ?= 2000
+ifneq ($(MT7986_ARMPLL_FREQ_MHZ),2000)
+$(eval $(call add_define_val,MT7986_ARMPLL_FREQ_MHZ,$(MT7986_ARMPLL_FREQ_MHZ)))
+endif
 
 # Make sure make command parameter reflects on .o files immediately
 include make_helpers/dep.mk

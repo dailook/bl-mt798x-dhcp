@@ -221,6 +221,37 @@ config MTK_UBI_FIP_MIN_SIZE
 	  fip upgrading failure due to no enough space caused by rootfs_data
 	  used out all free space.
 
+config MTK_UBI_BL2_IN_MTD_PART
+	bool "Store BL2 in a dedicated MTD partition"
+	depends on MTK_BOOTMENU_UBI
+	depends on ARCH_MEDIATEK
+	help
+	  Enable this option to store/upgrade BL2 in a raw MTD partition named
+	  "bl2" instead of upgrade by redundant copies in slot. This is useful
+	  when the MTD layout is legacy.
+
+	  When enabled, make sure mtdparts includes a "bl2" partition. and the
+	  BL2 redundant copy mechanism is not required.
+
+config MTK_UBI_FIP_IN_MTD_PART
+	bool "Store FIP in a dedicated MTD partition"
+	depends on MTK_BOOTMENU_UBI
+	depends on !MTK_DUAL_FIP
+	help
+	  Enable this option to store/upgrade FIP in a raw MTD partition
+	  named "fip" instead of a UBI volume. This is useful when the UBI
+	  partition has no free PEBs and FIP upgrades fail.
+
+	  When enabled, make sure mtdparts includes a "fip" partition and the
+	  FIP UBI volume is not required.
+
+config MTK_UBI_RF_IN_MTD_PART
+	bool "Store factory in a dedicated MTD partition"
+	depends on MTK_BOOTMENU_UBI
+	help
+	  Enable this option to store/upgrade factory in a raw MTD partition
+	  named "factory" instead of a UBI volume.
+
 config MTK_DUAL_BOOT_EMERG_IMAGE_UPGRADE
 	bool "Enable upgrading emergency image (Debug only)"
 	depends on MTK_DUAL_BOOT_EMERG_IMAGE
@@ -255,6 +286,26 @@ config MEDIATEK_MULTI_MTD_LAYOUT
 	depends on !MTK_BOOTMENU_MMC
 	depends on !MTK_DUAL_BOOT
 	default n
+
+config MEDIATEK_MTD_LAYOUT_PRINT
+	bool "Print mtd layout information during boot"
+	depends on MEDIATEK_MULTI_MTD_LAYOUT
+	default n
+
+config MTD_VERIFY_FDT
+	bool "Enable mtd device boot Linux FDT verification"
+	depends on MTD
+	default y
+
+config MTD_VERIFY_FDT_WARN_ONLY
+	bool "Warn only if FDT verification fails"
+	depends on MTD_VERIFY_FDT
+	default y
+	help
+	  When enabled, a failed FDT verification will only emit a warning
+	  and the boot will continue. This is intended for compatibility
+	  with legacy images or devices that do not yet match the expected
+	  FDT rules.
 
 menuconfig MTK_SECURE_BOOT
 	bool "Enable secure boot framework"

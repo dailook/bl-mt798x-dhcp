@@ -3,8 +3,8 @@
 VERSION = 2025
 PATCHLEVEL = 07
 SUBLEVEL =
-EXTRAVERSION =
-NAME =
+EXTRAVERSION = -Mediatek
+NAME = Yuzhii-Edition
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

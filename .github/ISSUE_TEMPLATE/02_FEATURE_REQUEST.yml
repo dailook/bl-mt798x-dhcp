@@ -1,0 +1,105 @@
+name: "功能请求 - Feature Request"
+description: "为 本仓库 提交新功能建议 - Suggest a new feature for this repo"
+
+title: "[FEAT] "
+labels:
+  - "enhancement"
+body:
+  - type: "markdown"
+    attributes:
+      value: |-
+        ## 请注意 - Caution
+        This form is only for feature requests, for any other cases, please [click here](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues/new)
+        此表单**仅用于提交功能请求**，如果是其它类型的反馈，请[点击这里以重新选择](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues/new/choose)。
+        请尽可能完整且详细地填写所有表单项，以便我们更高效地评估需求价值和实现可行性。
+        **信息过少或与功能请求无关的 Issue 可能会被关闭。**
+        **仅最新版本的 本仓库 会被优先支持与评估** 
+        
+        [在此查看最新哈希](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/commits/master/)
+  - type: "input"
+    attributes:
+      label: "哈希 - HASH"
+      description: |-
+        Enter the hash that display on Github Releases or the commit hash that can be found in commit history page.
+        输入您正在使用 本仓库 的HASH，通常可在提交记录页面找到
+      placeholder: "hash_value"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "需求背景/痛点 - Motivation / Problem"
+      description: |-
+        Describe what problem you are trying to solve and why this feature is needed.
+        请描述你希望解决的问题，以及为什么需要这个功能。
+      placeholder: "目前遇到的问题是……"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "期望功能描述 - Requested Feature"
+      description: |-
+        Describe the expected behavior in detail.
+        请详细描述你期望的新功能行为。
+      placeholder: "我希望新增……"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "首选方案 - Preferred Solution"
+      description: |-
+        Describe your preferred implementation or UX behavior.
+        请描述你最希望采用的实现方式或交互逻辑。
+      placeholder: "建议的实现方式……"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "备选方案 - Alternatives"
+      description: |-
+        Describe alternative solutions you have considered.
+        请描述你考虑过的备选方案。
+      placeholder: "也可以考虑……"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "相关代码/配置位置 - Related Code or Config"
+      description: |-
+        If possible, provide related files, code snippets, or module names.
+        如有可能，请提供相关文件路径、代码片段或模块名称。
+      placeholder: "例如：src/xxx/yyy.java"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "额外信息 - Additional Context"
+      description: |-
+        Add any context, screenshots, references, or links here.
+        在此补充任何截图、参考链接或其它上下文信息。
+      placeholder: "在此填写额外信息..."
+    validations:
+      required: false
+  - type: checkboxes
+    id: contribution-willingness
+    attributes:
+      label: "贡献意愿 - Contribution Willingness"
+      description: |-
+        Check and tick if you are willing to submit a PR when this request is approved.
+        如果该需求被采纳且你愿意提交 PR，请勾选。
+      options:
+        - label: "若需求被采纳，我愿意尝试提交 PR（需要帮助也可以）(If approved, I'm willing to submit a PR)"
+          required: false
+  - type: checkboxes
+    id: check-list
+    attributes:
+      label: "检查清单 - Check list"
+      description: |-
+        Check and tick checkboxes that listed below
+        检查并勾选下列项目
+      options:
+        - label: "我已确认这是功能请求而不是错误报告或使用问题 (This is a feature request, not a bug report or usage question)"
+          required: false
+        - label: "我已检查过 [README](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/blob/master/README.md) 与现有 [Issues](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues?q=is%3Aissue)，未找到相同需求 (I've checked [README](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/blob/master/README.md) and existing [issues](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues?q=is%3Aissue))"
+          required: false
+        - label: "我正在使用最新版本（或已知晓旧版本可能不被支持）(I'm using the latest version or understand old versions may not be supported)"
+          required: false

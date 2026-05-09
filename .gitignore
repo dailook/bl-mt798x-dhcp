@@ -9,8 +9,10 @@
 *.lex.c
 *.tab.*
 *.bin
+*.fip
 *.srec
 *.pyc
+*.mkimage
 .binman_stamp
 .config.old
 .mconf-cfg
@@ -31,16 +33,12 @@ u-boot.cfg
 /mkgpt/bin
 /mkgpt/gpttable
 __pycache__
-output/*
-output_gpt/*
-output_simg/*
-output_ramboot/*
+output*/
 mt798x_gpt_bin/*
 mt798x_simg/*
 unopen/*
-ramboot_cfg/*
-atf-20260123/*
-uboot-mtk-20260123/*
-migration_configs/*
-migration_dts/*
+migration_*/
 migration*.py
+
+# Toolchain
+openwrt-toolchain*

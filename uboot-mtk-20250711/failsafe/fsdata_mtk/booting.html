@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+	<title>Booting initramfs</title>
+	<link rel="stylesheet" href="/style.css">
+	<script src="/main.js"></script>
+	<script>
+		function init() {
+			ajax({
+				url: '/result',
+				done: function (response) {
+					if (response == 'failed') {
+						location = '/fail.html'
+						return
+					}
+
+					document.getElementById('title').innerHTML = 'BOOT SUCCESS'
+					document.getElementById('info').innerHTML = 'Your device was successfully booted into initramfs!'
+				},
+				timeout: 30000
+			})
+		}
+	</script>
+</head>
+
+<body onload="init()">
+	<div id="main">
+		<h1 id="title">BOOTING INITRAMFS</h1>
+		<p id="info">
+			Your file was successfully uploaded! Booting is in progress, please wait...<br>
+			This page may be in not responding status for a short time.
+		</p>
+	</div>
+</body>
+
+</html>

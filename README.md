@@ -1,76 +1,371 @@
-# 适用于 MT798x 的 ATF 与 U-Boot（带 DHCPD）U-boot-2025版本
+# ATF and u-boot for mt798x with DHCPD
 
-基于 hanwckf 的 MT798x U-Boot，由 Yuzhii 二次开发，支持 DHCPD，WEB UI由dailook再次修改
+A modified version of hanwckf's U-Boot for MT798x by Yuzhii, with support for DHCPD and a beautiful web UI. (Builds available for versions 2022/2023/2024/2025)
 
-警告：刷写自定义引导加载程序可能导致设备变砖，风险自负，请谨慎操作。
+Supports GitHub Actions for automatic builds, and can generate both normal and overclocked BL2.
 
-## 关于 bl-mt798x
+**Warning: Flashing custom bootloaders can brick your device. Proceed with caution and at your own risk.**
 
-- <https://cmi.hanwckf.top/p/mt798x-uboot-usage>
+## About bl-mt798x
 
-[U-boot-2025版本]
+U-Boot 2025 adds more features:
 
-## 准备环境
+- System info display
+- Factory (RF) update
+- Backup download
+- Flash editor
+- Web terminal
+- Environment manager
+- Theme manager
+- I18N support
+- Device reboot
+
+![Version-2025](document/pictures/uboot-2025.png)
+
+You can configure the features you need.
+
+- [x] MTK_DHCPD
+  - [x] MTK_DHCPD_ENHANCED
+  - [x] MTK_DHCPD_USE_CONFIG_IP
+  - MTK_DHCPD_POOL_START_HOST default 100
+  - MTK_DHCPD_POOL_SIZE default 101
+- Failsafe Web UI style:
+  - [x] WEBUI_FAILSAFE_UI_NEW
+    - [x] WEBUI_FAILSAFE_I18N
+  - [ ] WEBUI_FAILSAFE_UI_GL
+  - [ ] WEBUI_FAILSAFE_UI_MTK
+- [x] WEBUI_FAILSAFE_ADVANCED - Enable advanced features
+  - [ ] WEBUI_FAILSAFE_SIMG - Enable Single Image upgrade
+  - [x] WEBUI_FAILSAFE_FACTORY - Enable factory (RF) update
+  - [x] WEBUI_FAILSAFE_BACKUP - Enable backup download
+  - [x] WEBUI_FAILSAFE_ENV - Enable environment manager
+  - [x] WEBUI_FAILSAFE_CONSOLE - Enable web terminal
+  - [x] WEBUI_FAILSAFE_FLASH - Enable flash editor
+
+## Prepare
 
 ```bash
 sudo apt install gcc-aarch64-linux-gnu build-essential flex bison libssl-dev device-tree-compiler qemu-user-static
 ```
-## 克隆U-boot源码
 
-```bash
-git clone -b 2025 --single-branch --filter=blob:none https://github.com/dailook/bl-mt798x-dhcp
-```
+> If you want to build for arm v7l devices, you also need to install `gcc-arm-linux-gnueabi`
 
-## 本地编译命令示例
+## Build
+
+example:
 
 ```bash
 chmod +x build.sh
-SOC=mt7981 BOARD=sn_r1 VERSION=2025 ./build.sh
-SOC=mt7981 BOARD=cmcc_a10 VERSION=2025 MULTI_LAYOUT=1 ./build.sh
-SOC=mt7986 BOARD=clx_s20l VERSION=2025 ./build.sh
-SOC=mt7986 BOARD=clx_s20p VERSION=2025 ./build.sh
+# mt7981, emmc device
+BOARD=sn_r1 ./build.sh
+# mt7981, spi-nand device, nonmbm device
+BOARD=zbt_z8103ax-c VARIANT=NONMBM ./build.sh
+# mt7981, spi-nand device, multi-layout device
+BOARD=cmcc_a10 VERSION=SP2 MULTI_LAYOUT=1 ./build.sh
+# mt7986, spi-nand device, multi-layout device, single image upgrade support
+BOARD=ruijie_rg-x60-new VERSION=SP1 MULTI_LAYOUT=1 SIMG=1 ./build.sh
 ```
 
-- SOC=mt7981/mt7986
-- VERSION=2025
-- MULTI_LAYOUT=1 （可选，仅多 layout 设备需加，例如 xiaomi-wr30u、redmi-ax6000）
+- Version (default: 2025. Optional, for different versions of ATF and U-Boot)
 
-生成文件位于 output 目录
+| Version | ATF | UBOOT |
+| --- | --- | --- |
+| 2025 | 20250711 | 20250711 |
+| SP1 | 20241017-bacca82a8 | 20250711 |
+| SP2 | 20260123 | 20250711 |
 
-## 使用 Python2.7 生成 GPT 镜像
+> SP1: For some devices, still use the kernel 5.4 firmware, may cause some issues on version 2025, like hwrng wrong, in this case, you can try SP1.
+>
+> SP2: With some modifications for better compatibility with new platforms, like mt7987, or newest kernel.
 
-> 安装依赖
+- VARIANT (default: default. Optional, for different firmware variants)
+
+> Normally, `VARIANT` is prepared for MTD devices.
+
+| Variant | Description | Adapted Firmware |
+| --- | --- | --- |
+| default | Recommand for devices with stock/custom partition layout, enable MTK-NMBM, suitable for most users | stock/custom layout firmware |
+| nonmbm | Recommand for devices with stock/custom partition layout, with MTK-NMBM disabled | stock/custom layout firmware without MTK-NMBM |
+| ubootmod | With some modifications for better compatibility with OpenWrt/ImmortalWrt firmware | ubi/ubootmod layout firmware |
+| openwrt | From OpenWrt official respository, it has no failsafe web UI temporarily | OpenWrt official firmware |
+
+---
+
+Other options:
+
+| Option | type | required | default | description |
+| --- | --- | --- | --- | --- |
+| SOC | string | false | null | Auto detected, you can set SOC=mt7981, SOC=mt7986 or other mt798x platforms |
+| MULTI_LAYOUT | boolean | false | 0 | You can set MULTI_LAYOUT=1 to enable multi-layout support(Only for nand devices) |
+| FIXED_MTDPARTS | boolean | false | 1 | You can set FIXED_MTDPARTS=0 to make mtdparts editable, but it may cause some issues if you don't know what you are doing, so it's default to 1 to use fixed mtdparts.(Only for nand devices) |
+| FSTHEME | string | false | new | You can set FSTHEME=new/gl/mtk to change the failsafe web UI theme, new/gl/mtk |
+| SIMG | boolean | false | null | SIMG=1 means enable single image upgrade support in the failsafe web UI, but it may cause some issues if you don't know what you are doing, so it's default to 0 to disable it. |
+| CLEAN | boolean | false | null | You can set CLEAN=1 to clean the build environment before build |
+
+> CAN'T ENABLE MULTI_LAYOUT=1 and FIXED_MTDPARTS=0 at the same time
+
+Generated files will be in the `output`
+
+## Use Actions to build
+
+You need folk this repository to your own account, and then you can use the Actions to build the binaries, and the generated files will be in the `artifacts` or `releases` page.
+
+- [x] Build FIP
+  - [x] single-board/all/all-mt798x
+  - [x] Version 2022/2023/2024/2025/2026/SP1/SP2/all
+  - [ ] VARIANT
+  - [ ] Extra Options
+  > VERSION:all only for single-board
+- [x] Build GPT
+  - [x] Official layout
+  - [ ] Custom layout
+- [x] Build BL2
+  - [x] RAMBOOT
+  - [ ] OC profiles
+
+> if you want to build old versions(<2025), you can checkout the "old-version" branch
+>
+> version 2026 need checkout the "mtksoc-20260123" branch
+
+## Generate GPT with python2.7
+
+> install denpendencies
 
 ```bash
-sudo apt-get install python2-dev swig
+sudo apt-get install python2 python2-dev
 ```
 
-> 执行
+> run
 
 ```bash
 chmod +x generate_gpt.sh
 ./generate_gpt.sh
 ```
 
-生成文件位于 output_gpt 目录。
+Generated files will be in the `output_gpt`
 
-> 需在 mt798x_gpt 目录内放置对应设备的分区表 JSON，例如 atf-dir/tools/dev/gpt_editor/example/gpt.json。
+> You need to add your device's partition info JSON file in the "mt798x_gpt" directory, e.g. "atf-dir/tools/dev/gpt_editor/example/gpt.json".
 
-若启用 SDMMC=1（如 SDMMC=1 ./generate_gpt.sh），生成的 GPT 镜像将支持 MTK SDMMC。
+When you enable `SDMMC=1` (e.g. `SDMMC=1 ./generate_gpt.sh`), the generated GPT image will support MTK SDMMC.
 
-### 查看 GPT 信息
+### Show GPT info
 
-在仓库根目录新建 mt798x_gpt_bin 文件夹，把 GPT 二进制文件放入其中，然后运行：
+Create a directory named `mt798x_gpt_bin` in the respository root directory, and put your GPT bin files in it.
 
-```bash
-chmod +x show_gpt.sh
-./show_gpt.sh
-```
-
-脚本会解析 mt798x_gpt_bin 内所有 GPT 文件，并将分区信息输出到 output_gpt/gpt_info.txt。
-
-## 更换U-boot背景图
+Then run:
 
 ```bash
-替换路径"uboot-mtk-20250711/failsafe/fsdata/bg.jpg"的bg.jpg文件，文件大小控制在200kB大小以内
+SHOW=1 ./generate_gpt.sh
 ```
+
+Then it will display the GPT partition info of all GPT bin files in `mt798x_gpt_bin` directory, and output the results to `gpt_info.txt` in the `output_gpt` directory.
+
+### Draw GPT layout
+
+Install `Pillow` library:
+
+```bash
+pip3 install Pillow
+```
+
+Then run:
+
+```bash
+DRAW=1 ./generate_gpt.sh
+```
+
+## Compile ATF
+
+```bash
+chmod +x compile_atf.sh
+./compile_atf.sh
+```
+
+then will generate BL2 in the `output` directory. Normally, it will generate ramboot BL2.
+
+### Overclocking profiles
+
+Adujsting ARMPLL frequency is a **very dangerous** operation.
+
+**It may cause some issues if you don't know what you are doing, and may cause your device to be bricked!**
+
+So it's default to the stock frequency for safety, but you can enable the OC profiles to adjust the ARMPLL frequency, but please be careful when using it.
+
+- For mt7981, now support OC to 1.4GHz~1.8GHz, and the OC profiles are in the `mt798x_atf/mt7981` directory.
+
+  e.g. to build the 1.6GHz OC BL2 you need configure:
+
+  ```makefile
+  MT7981_ARMPLL_FREQ_1600=y
+  ```
+
+- For mt7986, now support OC to 2.5GHz, or underclock to 1.6GHz, and the OC profiles are in the `mt798x_atf/mt7986` directory.
+
+  e.g. to build the 2.3GHz OC BL2 you need configure:
+
+  ```makefile
+  MT7986_ARMPLL_FREQ_2300=y
+  ```
+
+> Limit each adjustment to 100MHz for mt798x, and limit each adjustment to 50MHz for mt762x, and it's recommended to adjust the frequency step by step, e.g. from 1.6GHz to 1.7GHz, then to 1.8GHz.
+
+ARMPLL frequency range adjustment support for different platforms:
+
+| Version | mt7622 | mt7629 | mt7981 | mt7986 | mt7987 | mt7988 |
+| --- | --- | --- | --- | --- | --- | --- |
+| TF-A 2024 | No | No | 1.3GHz~1.8GHz | 1.6GHz~2.5GHz | No | No |
+| TF-A 2025 | 1.35GHz~1.7GHz | 1.2GHz~1.5GHz | 1.3GHz~1.8GHz | 1.6GHz~2.5GHz | No | No |
+| TF-A 2026 | No | No | No | No | No | No |
+
+### Other Options
+
+these options are only work for `normal` directory
+
+| Option | type | required | default | description |
+| --- | --- | --- | --- | --- |
+| VARIANT | string | false | null | You can set VARIANT=NONMBM/UBOOTMOD to build different BL2 variants, NONMBM means build BL2 with MTK-NMBM disabled, UBOOTMOD means build BL2 with some modifications for better compatibility with OpenWrt/ImmortalWrt firmware, but it may cause some issues if you don't know what you are doing, so it's default to null to use the default BL2 variant. |
+| OC7981 | int | false | null | You can set OC7981=13-18 to build BL2 with different OC profiles for mt7981, FREQ=OC7981*100MHz, e.g. OC7981=16 means 1.6GHz, but it may cause some issues if you don't know what you are doing, so it's default to null to use the default OC profile. |
+| OC7986 | int | false | null | You can set OC7986=16-25 to build BL2 with different OC profiles for mt7986, FREQ=OC7986*100MHz, e.g. OC7986=23 means 2.3GHz, but it may cause some issues if you don't know what you are doing, so it's default to null to use the default OC profile. |
+
+---
+
+## FIT support
+
+**You MUST test it yourself, and there is a risk of BRICKING your device!**
+
+There are two ways to build:
+
+- Local Build
+
+  ```bash
+  BOARD=your_board VERSION=2025 VARIANT=ubootmod ./build.sh
+  ```
+
+- Use Action to build
+
+HOW to flash:
+
+1. Use failsafe WEB UI to backup[1*](#ENDNOTE) **all your flash and partitions**, is very **important**!
+
+2. Update BL2 in the WEB UI to flash the preloader provided by OpenWrt/ImmortalWrt ubootmod firmware.
+
+3. Update U-Boot in the WEB UI to flash the **FIT version FIP**.
+
+4. Use Flash Editor in the WEB UI to erase the UBI partition(or use command line: `mtd erase ubi`), this step is only for nand devices.
+
+5. Try upgrade in firmware upgrade page with the OpenWrt/ImmortalWrt ubootmod firmware[2*](#ENDNOTE) [3*](#ENDNOTE), if not work, try next step.
+
+6. Use failsafe WEB UI Initramfs to boot the OpenWrt/ImmortalWrt ubootmod Initramfs image.
+
+7. If the device can boot into OpenWrt/ImmortalWrt successfully, then you can try upgrade in firmware upgrade page with the OpenWrt/ImmortalWrt ubootmod firmware again.
+
+---
+
+## The best practices
+
+1. Use TTL tools to connect to the serial port, and use [MTK UARTBOOT](https://github.com/981213/mtk_uartboot/releases) to ramboot
+
+2. In Web UI, backup all your flash and partitions[1*](#ENDNOTE), is very important!
+
+3. Update U-Boot in the WEB UI and upgrade firmware
+
+4. restore backup if something goes wrong
+
+### Change failsafe WEB UI start key
+
+The following priorities are now supported:
+
+- `glbtn_gpio=<gpio>`
+  → Directly read the GPIO.
+- `glbtn_key=<label>`
+  → Still search by label.
+
+e.g.
+
+- Specify only GPIO:
+  `setenv glbtn_gpio 0`
+- With the `gpio:` prefix:
+  `setenv glbtn_gpio gpio:0`
+  > 0, gpio 0, pio 0, gpio:0, pio0.
+- Flip the signal:
+  `setenv glbtn_gpio !0`
+  > !gpio 0, !pio 0, !gpio:0, !pio0.
+- Scan gpio-keys:
+  `setenv glbtn_key wps`
+  > wps, reset, mesh...
+
+> Then you need saveenv and reboot to apply.
+
+### Change MTD partition layout manually
+
+Only for multi-layout devices
+
+Set mtdparts environment variable to the partition layout you want to use, and reboot to apply.
+
+```bash
+# Current method
+setenv mtd_layout <label>
+# legacy method
+setenv mtd_layout_label <label>
+```
+
+> Then you need saveenv and reboot to apply.
+
+### Disable auto-reboot after upgrade
+
+Set failsafe_auto_reboot environment variable to 1/true/yes/on to enable auto reboot after upgrade(New WEB UI).
+
+### Some commands in firmware
+
+```bash
+fw_setenv env_invalid 1 # Reset environment to default values in next boot
+fw_setenv failsafe 1 # Reboot to failsafe mode in next boot
+```
+
+> need install `uboot-envtools` and configure `package/boot/uboot-envtools/files/mediatek_filogic` correctly for your device before compile firmware, otherwise the environment variables will not work.
+
+---
+
+<a id="ENDNOTE"></a>
+
+## Endnote
+
+1*: If your device is a MMC device, back up all flash is not feasible. It depends on the size of the firmware, which is usually 200MB to 300MB.
+
+2*: If your device is a MMC device, you need upgrade GPT table which has production partition, then you needn't use ubootmod firmware, you can use the OpenWrt official firmware directly.
+
+3*: The OpenWrt/ImmortalWrt ubootmod firmware is a special firmware with FIT support, in this firmware, devicetree is loaded from the FIT image(bootargs = "root=/dev/fit0 rootwait"), and loaded from ubi_rootdisk. You'd better use a version after OpenWrt/ImmortalWrt 24.10.
+
+---
+
+## Old Version ( < U-Boot 2025 )
+
+Now U-Boot 2022 and 2023 is **not maintained**(include Version2022/2023/2024).
+
+**You can find old versions in the "old-version" branch, but they may have some issues, so it's recommended to use U-Boot 2025 for better experience.**
+
+- <https://cmi.hanwckf.top/p/mt798x-uboot-usage>
+
+---
+
+## mt7621
+
+**It only for development and testing, not recommended for production use.**
+
+```bash
+chmod +x build_mt7621.sh
+BOARD=your_board ./build_mt7621.sh
+```
+
+but it not preferred, because the mt7621 u-boot has some issues on uboot-mtk-20250711, failsafe web UI is not working, and other unknown issues.
+
+It may cause some issues if you don't know what you are doing, so it's recommended to use the [uboot-mt7621-dhcpd](https://github.com/Yuzhii0718/uboot-mt7621-dhcpd) project for mt7621 devices, which is more stable and has better support for mt7621 devices.
+
+---
+
+## Acknowledgement
+
+- [u-boot](https://github.com/u-boot/u-boot)
+- [mtk-openwrt](https://github.com/mtk-openwrt)
+- [hanwckf](https://github.com/hanwckf/bl-mt798x)
+- [Tianling](https://blog.imouto.in/)

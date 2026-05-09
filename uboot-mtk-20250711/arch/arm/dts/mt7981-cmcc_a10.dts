@@ -24,7 +24,7 @@
 	mtd-layout {
 		layout@0 {
 			label = "default";
-			// mtd layout for stock ubi firmware, support immortalwrt/openwrt 112M ubi firmware
+			// mtd layout for immortalwrt/openwrt 112M ubi firmware
 			mtdids = "nmbm0=nmbm0";
 			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),114688k(ubi)";
 		};
@@ -41,6 +41,13 @@
 			// mtd layout for lean qwrt
 			mtdids = "nmbm0=nmbm0";
 			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),1024k(rsv0),110M(ubi)";
+		};
+
+		layout@3 {
+			label = "stock";
+			// mtd layout for stock layout firmware
+			mtdids = "nmbm0=nmbm0";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),1024k(rsv0),65536k(ubi)";
 		};
 	};
 

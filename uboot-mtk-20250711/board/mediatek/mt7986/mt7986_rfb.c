@@ -51,3 +51,33 @@ ulong board_get_load_addr(void)
 
 	return gd->ram_base + SZ_256M;
 }
+
+
+const static struct {
+	const char *name;
+	const char *desc;
+	int group;
+} board_fit_conf_info[] = {
+	{ "mt7986-rfb-emmc", "Image on eMMC", 0 },
+	{ "mt7986-rfb-sd", "Image on SD", 0 },
+	{ "mt7986-rfb-snfi-nand", "Image on SNFI-NAND", 0 },
+	{ "mt7986-rfb-spim-nand", "Image on SPIM-NAND (UBI)", 0 },
+	{ "mt7986-rfb-spim-nand-factory", "UBI \"factory\" volume config", -1 },
+	{ "mt7986-rfb-spim-nand-nmbm", "Image on SPIM-NAND (NMBM)", 0 },
+	{ "mt7986-rfb-spim-nor", "Image on SPI-NOR", 0 },
+};
+
+int mtk_board_get_fit_conf_info(const char *name, const char **retdesc)
+{
+	uint32_t i;
+
+	for (i = 0; i < ARRAY_SIZE(board_fit_conf_info); i++) {
+		if (!strcmp(name, board_fit_conf_info[i].name)) {
+			(*retdesc) = board_fit_conf_info[i].desc;
+			return board_fit_conf_info[i].group;
+		}
+	}
+
+	(*retdesc) = NULL;
+	return -1;
+}

@@ -1,65 +1,86 @@
 <!DOCTYPE HTML>
 <html lang="zh">
-
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>更新失败</title>
 	<link rel="stylesheet" href="style.css">
+	<script src="i18n.js"></script>
 	<script src="main.js"></script>
 </head>
-
 <body onload="appInit('fail')" data-page="fail">
 	<div class="app">
 		<aside class="sidebar">
+			<div class="sidebar-brand">
+			</div>
+			<div class="sidebar-controls">
+				<div class="control-row">
+					<div>🌐 <span data-i18n="nav.language">语言</span></div>
+					<select id="lang_select" onchange="setLang(this.value)">
+						<option value="zh-cn" selected>简体中文</option>
+						<option value="en">English</option>
+					</select>
+				</div>
+			</div>
 			<ul class="sidebar-nav">
-				<li class="sidebar-nav-item">
-					<a href="/"><span class="ico">🧰</span>固件更新</a>
+				<li class="sidebar-nav-item" id="nav-firmware">
+					<a href="/"><span class="ico">🧰</span><span data-i18n="nav.firmware">固件更新</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="bl2.html"><span class="ico">📦</span>BL2更新</a>
+				<li class="sidebar-nav-item" id="nav-bl2">
+					<a href="bl2.html"><span class="ico">📦</span><span data-i18n="nav.bl2">BL2更新</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="uboot.html"><span class="ico">🔑</span>U-Boot更新</a>
+				<li class="sidebar-nav-item" id="nav-uboot">
+					<a href="uboot.html"><span class="ico">🔑</span><span data-i18n="nav.uboot">U-Boot更新</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="gpt.html"><span class="ico">💾</span>GPT更新</a>
+				<li class="sidebar-nav-item" id="nav-gpt">
+					<a href="gpt.html"><span class="ico">💾</span><span data-i18n="nav.gpt">GPT更新</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="factory.html"><span class="ico">🏭</span>Factory更新</a>
+				<li class="sidebar-nav-item" id="nav-factory">
+					<a href="factory.html"><span class="ico">🏭</span><span data-i18n="nav.factory">Factory更新</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="initramfs.html"><span class="ico">⚡</span>启动内存固件</a>
+				<li class="sidebar-nav-item" id="nav-initramfs">
+					<a href="initramfs.html"><span class="ico">⚡</span><span data-i18n="nav.initramfs">启动内存固件</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="env.html"><span class="ico">⚙️</span>环境变量</a>
+				<li class="sidebar-nav-item" id="nav-env">
+					<a href="env.html"><span class="ico">⚙️</span><span data-i18n="nav.env">环境变量</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="console.html"><span class="ico">💻</span>命令行</a>
+				<li class="sidebar-nav-item" id="nav-console">
+					<a href="console.html"><span class="ico">💻</span><span data-i18n="nav.console">命令行</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="backup.html"><span class="ico">💾</span>备份</a>
+				<li class="sidebar-nav-item" id="nav-flash">
+					<a href="flash.html"><span class="ico">🔥</span><span data-i18n="nav.flash">闪存编辑</span></a>
 				</li>
-				<li class="sidebar-nav-item">
-					<a href="reboot.html"><span class="ico">🔄</span>重启</a>
+				<li class="sidebar-nav-item" id="nav-simg">
+					<a href="simg.html"><span class="ico">📀</span><span data-i18n="nav.simg">SIMG更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-backup">
+					<a href="backup.html"><span class="ico">💾</span><span data-i18n="nav.backup">备份</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-reboot">
+					<a href="reboot.html"><span class="ico">🔄</span><span data-i18n="nav.reboot">重启</span></a>
 				</li>
 			</ul>
 		</aside>
-		<div class="main">
+		<main class="main">
 			<div id="m">
+				<!-- 标题区域居中 -->
 				<div class="card-head">
-					<h1 class="red">❌ 更新失败</h1>
+					<h1 class="red" data-i18n="fail.title">更新失败</h1>
 				</div>
-				<div class="card-foot">
-					<div class="i e">
-						<strong>更新过程中出现错误</strong><br>
-						可能选择了错误的文件。请重试或联系此修改的作者。您也可以在 U-Boot 控制台查看更多刷写过程信息。
+				
+				<!-- 内容区域居中显示 -->
+				<div class="card-main" style="justify-content: center; align-items: center;">
+					<div class="i e" style="text-align: center; max-width: 560px; width: 100%;">
+						<strong data-i18n="fail.msg.strong" style="justify-content: center;">更新过程中出现错误</strong>
+						<div data-i18n-html="fail.msg.rest" style="margin-top: 10px;">
+							可能是您选择了错误的文件。请重试，或联系此固件的作者。<br>
+							您也可以通过 U-Boot 控制台获取更多更新信息。
+						</div>
 					</div>
 				</div>
 			</div>
 			<div id="version"></div>
-		</div>
+		</main>
 	</div>
 </body>
-
 </html>

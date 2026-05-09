@@ -1,0 +1,104 @@
+name: "代码库改进 - Codebase Improvement"
+description: "针对现有代码结构、算法、工具链等提出改进建议 - Suggest improvements for current codebase/design/tooling"
+
+title: "[DEV] "
+labels:
+  - "enhancement"
+body:
+  - type: "markdown"
+    attributes:
+      value: |-
+        ## 请注意 - Caution
+        This form is only for codebase improvement proposals, for any other cases, please [click here](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues/new)
+        此表单**仅用于代码库改进建议**（例如架构、算法、开发工具链、可维护性优化等），如果是其它类型反馈，请[点击这里以重新选择](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues/new/choose)。
+        请尽可能提供可落地、可验证的改进方案，以便我们快速评估和实施。
+        **缺少关键信息（现状、问题、方案、收益）的提案可能会被关闭。**
+
+        [在此查看最新哈希的HASH](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/commits/master/)
+  - type: "input"
+    attributes:
+      label: "哈希 - HASH"
+      description: |-
+        Enter the hash that display on Github Releases or the commit hash that can be found in commit history page.
+        输入您正在使用 本仓库 的HASH，通常可在提交记录页面找到
+      placeholder: "hash_value"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "当前现状与问题 - Current State and Problem"
+      description: |-
+        Describe what part of the codebase can be improved and what problem exists today.
+        请描述当前代码库中可改进的部分，以及现有问题是什么。
+      placeholder: "当前实现存在……"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "改进方案 - Proposed Improvement"
+      description: |-
+        Describe your proposal in detail (architecture/algorithm/tooling/refactor plan).
+        请详细描述你的改进方案（架构/算法/工具链/重构计划等）。
+      placeholder: "建议改为……"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "预期收益 - Expected Benefits"
+      description: |-
+        Explain expected outcomes such as performance, readability, maintainability, reliability, etc.
+        请说明预期收益，例如性能、可读性、可维护性、稳定性等。
+      placeholder: "预期可提升……"
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "潜在影响/风险 - Impact and Risks"
+      description: |-
+        Describe possible side effects, compatibility impact, or migration cost.
+        请描述可能的副作用、兼容性影响或迁移成本。
+      placeholder: "可能风险包括……"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "相关文件/模块 - Related Files/Modules"
+      description: |-
+        List related files, folders, modules, classes, or functions.
+        请列出相关文件、目录、模块、类或函数。
+      placeholder: "例如：src/core/..., pkg/..., class XXX"
+    validations:
+      required: false
+  - type: "textarea"
+    attributes:
+      label: "证据与参考 - Evidence / References"
+      description: |-
+        Add benchmark data, profiling results, papers, links, or prior art if available.
+        如有性能测试、分析数据、论文或参考链接，请在此提供。
+      placeholder: "可选：Benchmark、Flamegraph、参考实现链接……"
+    validations:
+      required: false
+  - type: checkboxes
+    id: contribution-willingness
+    attributes:
+      label: "贡献意愿 - Contribution Willingness"
+      description: |-
+        Check and tick if you are willing to submit a PR for this improvement.
+        如果你愿意为该改进提交 PR，请勾选。
+      options:
+        - label: "我愿意尝试提交 PR 来实现该改进 (I'm willing to submit a PR for this improvement)"
+          required: false
+  - type: checkboxes
+    id: check-list
+    attributes:
+      label: "检查清单 - Check list"
+      description: |-
+        Check and tick checkboxes that listed below
+        检查并勾选下列项目
+      options:
+        - label: "我已确认这是代码库改进建议，而不是错误反馈 (This is a codebase improvement proposal, not a bug report)"
+          required: false
+        - label: "我已尽量给出可执行、可验证的方案说明 (I provided an actionable and verifiable proposal)"
+          required: false
+        - label: "我已检查过 [README](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/blob/master/README.md) 与现有 [Issues](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues?q=is%3Aissue)，未找到相同需求 (I've checked [README](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/blob/master/README.md) and existing [issues](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues?q=is%3Aissue))"
+          required: false

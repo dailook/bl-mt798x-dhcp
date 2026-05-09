@@ -1,0 +1,32 @@
+{
+	"u-boot-env": {
+		"start": 8192,
+		"end": 9215,
+		"unique_part_guid": "{493dcd1a-59c0-11ee-b4d0-b083fea0360d}"
+	},
+	"factory": {
+		"start": 9216,
+		"end": 13311,
+		"unique_part_guid": "{493ddcce-59c0-11ee-b4d0-b083fea0360d}"
+	},
+	"fip": {
+		"start": 13312,
+		"end": 21503,
+		"unique_part_guid": "{493de9f8-59c0-11ee-b4d0-b083fea0360d}"
+	},
+	"config": {
+		"start": 21504,
+		"end": 23551,
+		"unique_part_guid": "{493df68c-59c0-11ee-b4d0-b083fea0360d}"
+	},
+	"kernel": {
+		"start": 23552,
+		"end": 154623,
+		"unique_part_guid": "{493e030c-59c0-11ee-b4d0-b083fea0360d}"
+	},
+	"rootfs": {
+		"start": 154624,
+		"end": 122126302,
+		"unique_part_guid": "{493e0f82-59c0-11ee-b4d0-b083fea0360d}"
+	}
+}

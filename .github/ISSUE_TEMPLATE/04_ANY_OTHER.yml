@@ -1,0 +1,38 @@
+name: "任何其它 - Other"
+description: "报告其它分类均无关的问题"
+
+title: "[Other] "
+labels:
+  - "Other"
+body:
+  - type: "textarea"
+    attributes:
+      label: "问题描述 - Issue Description"
+      description: |-
+        Describe the problem you encounted.
+        在此详细的描述你所遇到的问题
+    validations:
+      required: true
+  - type: "textarea"
+    attributes:
+      label: "额外信息 - Addition Information"
+      description: |-
+        If you have any related informations, please insert them into this text area.
+        如果你还有其他觉得可能对排查和解决此问题有帮助的更多信息，可以在这里告诉我们
+      placeholder: "在此填写可能有用的额外信息..."
+  - type: checkboxes
+    id: check-list
+    attributes:
+      label: 检查清单 - Check list
+      description: |-
+        Check and tick checkboxes that listed below
+        检查并勾选所有需要勾选的框框
+      options:
+        - label: "这不是一个错误 （BUG） (This is not an bug/error)"
+          required: false
+        - label: "本仓库 已更新到最新版本，非最新版本不接受任何错误反馈，任何非最新版本的 Issue 将被 立 刻 关 闭，不会有人给您提供任何支持 (I'm running the latest version of that can be found in Github Relases, non-latest release won't receive any support)"
+          required: false
+        - label: "我已检查过 [README](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/blob/master/README.md) 与现有 [Issues](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues?q=is%3Aissue)，未找到相同问题 (I've checked [README](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/blob/master/README.md) and existing [issues](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/issues?q=is%3Aissue))"
+          required: false
+        - label: "我没有检查这个检查清单，只是闭眼选中了所有的复选框，请关闭这个 Issue (I have not read these checkboxes and therefore I just ticked them all, Please close this issue)"
+          required: false

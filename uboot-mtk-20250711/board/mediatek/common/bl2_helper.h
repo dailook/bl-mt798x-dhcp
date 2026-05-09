@@ -12,8 +12,10 @@
 #include "upgrade_helper.h"
 
 /* 2MB bl2 max size */
-#define MAX_BL2_SIZE	0x200000
-#define BL2_HDR_SIZE	16
+#define MAX_BL2_SIZE		0x200000
+#define BL2_HDR_SIZE		16
+#define BL2_SKIP_BADBLK_SIZE	0x40000
+#define BL2_SKIP_BADBLK_COUNT	8
 
 /* SF_BOOT */
 #define SPIM_NOR_HDR                                                           \

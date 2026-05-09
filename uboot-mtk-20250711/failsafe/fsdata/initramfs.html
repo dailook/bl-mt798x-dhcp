@@ -5,55 +5,97 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>启动内存固件</title>
 	<link rel="stylesheet" href="style.css">
+	<script src="i18n.js"></script>
 	<script src="main.js"></script>
 </head>
 <body onload="appInit('initramfs')" data-page="initramfs">
 	<div class="app">
 		<aside class="sidebar">
+			<div class="sidebar-brand">
+			</div>
+			<div class="sidebar-controls">
+				<div class="control-row">
+					<div>🌐 <span data-i18n="nav.language">语言</span></div>
+					<select id="lang_select" onchange="setLang(this.value)">
+						<option value="zh-cn" selected>简体中文</option>
+						<option value="en">English</option>
+					</select>
+				</div>
+			</div>
 			<ul class="sidebar-nav">
-				<li class="sidebar-nav-item"><a href="/"><span class="ico">🧰</span>固件更新</a></li>
-				<li class="sidebar-nav-item"><a href="bl2.html"><span class="ico">📦</span>BL2更新</a></li>
-				<li class="sidebar-nav-item"><a href="uboot.html"><span class="ico">🔑</span>U-Boot更新</a></li>
-				<li class="sidebar-nav-item"><a href="gpt.html"><span class="ico">💾</span>GPT更新</a></li>
-				<li class="sidebar-nav-item"><a href="factory.html"><span class="ico">🏭</span>Factory更新</a></li>
-				<li class="sidebar-nav-item active"><a href="initramfs.html"><span class="ico">⚡</span>启动内存固件</a></li>
-				<li class="sidebar-nav-item"><a href="env.html"><span class="ico">⚙️</span>环境变量</a></li>
-				<li class="sidebar-nav-item"><a href="console.html"><span class="ico">💻</span>命令行</a></li>
-				<li class="sidebar-nav-item"><a href="backup.html"><span class="ico">💾</span>备份</a></li>
-				<li class="sidebar-nav-item"><a href="reboot.html"><span class="ico">🔄</span>重启</a></li>
+				<li class="sidebar-nav-item" id="nav-firmware">
+					<a href="/"><span class="ico">🧰</span><span data-i18n="nav.firmware">固件更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-bl2">
+					<a href="bl2.html"><span class="ico">📦</span><span data-i18n="nav.bl2">BL2更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-uboot">
+					<a href="uboot.html"><span class="ico">🔑</span><span data-i18n="nav.uboot">U-Boot更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-gpt">
+					<a href="gpt.html"><span class="ico">💾</span><span data-i18n="nav.gpt">GPT更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-factory">
+					<a href="factory.html"><span class="ico">🏭</span><span data-i18n="nav.factory">Factory更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-initramfs">
+					<a><span class="ico">⚡</span><span data-i18n="nav.initramfs">启动内存固件</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-env">
+					<a href="env.html"><span class="ico">⚙️</span><span data-i18n="nav.env">环境变量</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-console">
+					<a href="console.html"><span class="ico">💻</span><span data-i18n="nav.console">命令行</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-flash">
+					<a href="flash.html"><span class="ico">🔥</span><span data-i18n="nav.flash">闪存编辑</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-simg">
+					<a href="simg.html"><span class="ico">📀</span><span data-i18n="nav.simg">SIMG更新</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-backup">
+					<a href="backup.html"><span class="ico">💾</span><span data-i18n="nav.backup">备份</span></a>
+				</li>
+				<li class="sidebar-nav-item" id="nav-reboot">
+					<a href="reboot.html"><span class="ico">🔄</span><span data-i18n="nav.reboot">重启</span></a>
+				</li>
 			</ul>
 		</aside>
-		<div class="main">
+		<main class="main">
 			<div id="m">
 				<div class="card-head">
-					<h1>⚡ 启动内存固件 (Initramfs)</h1>
-					<p id="hint">您将要加载 <strong>内存固件</strong> 到设备内存中运行。<br>请从本地硬盘中选择文件，然后点击 <strong>上传</strong> 按钮。</p>
+					<h1 data-i18n="initramfs.title">⚡ 启动内存固件</h1>
+					<p id="hint" data-i18n-html="initramfs.hint">
+						您将要加载 <strong>initramfs</strong> 到设备。<br>
+						请从本地硬盘中选择文件，然后点击 <strong>上传</strong> 按钮。
+					</p>
 				</div>
 				<div class="card-main">
 					<form id="form">
 						<input id="file" type="file" name="initramfs">
-						<input type="button" value="📤 上传" onclick="upload('initramfs')">
+						<input type="button" value="📤 上传" data-i18n-attr="value:common.upload" onclick="upload('initramfs')">
 					</form>
 					<div class="bar" id="bar" style="display:none; --percent:0;"></div>
-					<div id="size" style="display: none;">Size: xxxx</div>
-					<div id="md5" style="display: none;">MD5: xxxx</div>
+					<div id="filename" style="display: none;">文件：xxxx</div>
+					<div id="size" style="display: none;">大小：xxxx</div>
+					<div id="md5" style="display: none;">MD5：xxxx</div>
 					<div id="upgrade" style="display:none;">
-						<p>✅ 如果以上信息确认无误，请点击"启动"。</p>
-						<button class="button" onclick="location='booting.html'">🚀 启动</button>
+						<p data-i18n="initramfs.boot_hint">✅ 如果以上信息确认无误，请点击"启动"。</p>
+						<button class="button" data-i18n="common.boot" onclick="location='booting.html'">🚀 启动</button>
 					</div>
 				</div>
 				<div class="card-foot">
 					<div class="i w">
-						<strong>⚠️ 注意事项：</strong>
+						<strong data-i18n="common.warnings">⚠️ 注意事项：</strong>
 						<ul>
-							<li>如果一切顺利，设备将启动进入内存固件</li>
-							<li>请确保上传正确的 initramfs 镜像，否则设备可能无法启动</li>
+							<li data-i18n="initramfs.warn.1">如果一切顺利，设备将启动进入initramfs</li>
+							<li data-i18n="initramfs.warn.2">您可以上传任何文件，请确保选择适合您设备的initramfs镜像</li>
 						</ul>
 					</div>
 				</div>
 			</div>
 			<div id="version"></div>
-		</div>
+		</main>
 	</div>
 </body>
 </html>

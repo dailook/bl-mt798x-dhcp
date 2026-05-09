@@ -20,30 +20,73 @@ choice
 config WEBUI_FAILSAFE_UI_NEW
 	bool "New UI (fsdata)"
 
-config WEBUI_FAILSAFE_UI_OLD
-	bool "Old UI (fsdata_old)"
+config WEBUI_FAILSAFE_UI_MTK
+	bool "MTK UI (fsdata_mtk)"
+
+config WEBUI_FAILSAFE_UI_GL
+	bool "GL UI (fsdata_gl)"
 
 endchoice
 
-config WEBUI_FAILSAFE_FACTORY
-	bool "Enable Factory upgrade"
+config WEBUI_FAILSAFE_I18N
+	bool "Enable i18n dictionary (fsdata)"
+	default y
+	depends on WEBUI_FAILSAFE_UI_NEW
+	help
+	  Enable i18n dictionary resources for the new failsafe Web UI.
+	  When disabled, i18n.js will not be embedded or served.
+
+config WEBUI_FAILSAFE_ADVANCED
+	bool "Enable advanced features"
 	default y
 	depends on WEBUI_FAILSAFE
+	help
+	  Enable advanced features in the failsafe Web UI.
+
+config WEBUI_FAILSAFE_BUILD_VARIANT
+	string "Failsafe build variant tag"
+	default ""
+	depends on WEBUI_FAILSAFE
+	help
+	  Optional build variant string shown in failsafe sysinfo.
+
+config WEBUI_FAILSAFE_FACTORY
+	bool "Enable Factory upgrade (DANGEROUS)"
+	default y
+	depends on WEBUI_FAILSAFE_ADVANCED
 	help
 	  Enable Factory partition upgrade in the failsafe Web UI.
 	  This is an advanced feature and should be used with care.
 
+config WEBUI_FAILSAFE_SIMG
+	bool "Enable Single Image upgrade (DANGEROUS)"
+	default n
+	depends on WEBUI_FAILSAFE_ADVANCED
+	help
+	  Enable Single Image (ROM dump) upgrade in the failsafe Web UI.
+	  This is a very dangerous feature and may brick the device.
+
 config WEBUI_FAILSAFE_BACKUP
 	bool "Enable backup download"
 	default y
-	depends on WEBUI_FAILSAFE
+	depends on WEBUI_FAILSAFE_ADVANCED
 	help
 	  Enable backup download functionality in the failsafe Web UI.
 
-config WEBUI_FAILSAFE_ENV
-	bool "Enable U-Boot environment management"
+config WEBUI_FAILSAFE_FLASH
+	bool "Enable flash editor (DANGEROUS)"
 	default y
-	depends on WEBUI_FAILSAFE
+	depends on WEBUI_FAILSAFE_BACKUP
+	help
+	  Enable flash editor in the failsafe Web UI for reading/writing
+	  arbitrary storage ranges and restoring backup files.
+
+	  WARNING: This is a dangerous feature and may brick the device.
+
+config WEBUI_FAILSAFE_ENV
+	bool "Enable U-Boot environment management (DANGEROUS)"
+	default y
+	depends on WEBUI_FAILSAFE_ADVANCED
 	help
 	  Enable environment variable management (list/add/delete/reset/restore)
 	  in the failsafe Web UI.
@@ -51,6 +94,7 @@ config WEBUI_FAILSAFE_ENV
 config WEBUI_FAILSAFE_CONSOLE
 	bool "Enable failsafe Web console (DANGEROUS)"
 	select CONSOLE_RECORD
+	depends on WEBUI_FAILSAFE_ADVANCED
 	default y
 	help
 	  Enable a simple web console (web terminal) in the failsafe Web UI.

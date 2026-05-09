@@ -1,14 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
 config MTK_NET_PHYLIB
-	tristate
+	bool
 
 config PHY_MEDIATEK_2P5GE
-	tristate "MediaTek 2.5Gb Ethernet PHYs"
-	depends on OF_CONTROL
+	bool "MediaTek built-in 2.5Gb ethernet PHYs"
+	depends on OF_CONTROL && (TARGET_MT7987 || TARGET_MT7988)
+	select FW_LOADER
 	select MTK_NET_PHYLIB
 	help
-	  Supports MediaTek SoC built-in 2.5Gb Ethernet PHYs.
+	  Supports MediaTek SoC built-in 2.5Gb ethernet PHYs.
 
-	  This will load necessary firmware and add appropriate time delay.
-	  Accelerate this procedure through internal pbus instead of MDIO
-	  bus. Certain link-up issues will also be fixed here.
+	  This driver requires firmware download for PHY to enable its
+	  functionality. The board can override certian firmware downloading
+	  function to provide the firmware data.

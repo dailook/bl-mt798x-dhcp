@@ -88,6 +88,12 @@ config PHY_AIROHA_AN8801SB
 	help
 		AIROHA AN8801SB supported.
 
+config PHY_AIROHA_AN8811HB
+	bool "Airoha Ethernet AN8811HB support"
+	depends on PHY_AIROHA
+	help
+		AIROHA AN8811HB supported.
+
 config PHY_AIROHA_EN8801S
 	bool "Airoha Ethernet EN8801S support"
 	depends on PHY_AIROHA
@@ -99,6 +105,31 @@ config PHY_AIROHA_EN8811H
 	depends on PHY_AIROHA
 	help
 		AIROHA EN8811H supported.
+
+choice
+	prompt "Location of the Airoha PHY firmware"
+	default PHY_AIROHA_FW_IN_MMC
+	depends on PHY_AIROHA_EN8811H
+
+config PHY_AIROHA_FW_IN_MMC
+	bool "Airoha firmware in MMC boot1 partition"
+
+endchoice
+
+config AIROHA_FW_ADDR
+	hex "Airoha Firmware Address"
+	depends on PHY_AIROHA_EN8811H
+	default 0x0
+
+config AIROHA_MD32_DM_SIZE
+	hex "Airoha Firmware MD32 DM Size"
+	depends on PHY_AIROHA_EN8811H
+	default 0x4000
+
+config AIROHA_MD32_DSP_SIZE
+	hex "Airoha Firmware MD32 DSP Size"
+	depends on PHY_AIROHA_EN8811H
+	default 0x20000
 
 menuconfig PHY_AQUANTIA
 	bool "Aquantia Ethernet PHYs support"
@@ -113,10 +144,25 @@ config PHY_AQUANTIA_UPLOAD_FW
 		from storage directly attached to the phy or loaded by the boot loader
 		via MDIO commands.  The firmware is loaded from a file, specified by
 		the PHY_AQUANTIA_FW_PART and PHY_AQUANTIA_FW_NAME options.
+		This option enables loading the firmware using the generic
+		firmware loader framework.
 
 config PHY_AQUANTIA_FW_ARRAY
 	bool "Aquantia firmware array"
 	depends on PHY_AQUANTIA_UPLOAD_FW
+	help
+		Array containing the firmware file.
+
+config PHY_AQUANTIA_FW_PART
+	string "Aquantia firmware partition"
+	depends on PHY_AQUANTIA_UPLOAD_FW
+	help
+		Partition containing the firmware file.
+
+config PHY_AQUANTIA_FW_MAX_SIZE
+	hex "Max firmware size"
+	depends on PHY_AQUANTIA_UPLOAD_FW
+	default 0x80000
 	help
 		Array containing the firmware file.
 
@@ -131,6 +177,11 @@ config PHY_AQUANTIA_FW_NAME
 	depends on PHY_AQUANTIA_UPLOAD_FW
 	help
 		Firmware filename.
+
+config PHY_AS21XXX
+    bool "Aeonsemi AS21XXX Ethernet PHYs support"
+    select PHY_GIGE
+	select PHYLIB_10G
 
 config PHY_ATHEROS
 	bool "Atheros Ethernet PHYs support"

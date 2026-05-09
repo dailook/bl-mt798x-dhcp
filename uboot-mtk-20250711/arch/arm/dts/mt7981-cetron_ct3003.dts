@@ -41,13 +41,11 @@
 
 		status_red_led: led-0 {
 			label = "red:status";
-			linux,code = <KEY_RESTART>;
 			gpios = <&pio 3 GPIO_ACTIVE_LOW>;
 		};
 
 		status_green_led: led-1 {
 			label = "green:status";
-			linux,code = <BTN_9>;
 			gpios = <&pio 7 GPIO_ACTIVE_LOW>;
 		};
 	};

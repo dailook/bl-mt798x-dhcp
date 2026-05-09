@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+#include "mt7981.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/linux-event-codes.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "GL.iNet GL-X3000";
+	compatible = "glinet,gl-x3000", "mediatek,mt7981";
+
+	chosen {
+		stdout-path = &uart0;
+		tick-timer = &timer0;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x20000000>;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		wifi2g {
+			label = "green:wifi2g";
+			gpios = <&pio 30 GPIO_ACTIVE_LOW>;
+		};
+
+		wifi5g {
+			label = "green:wifi5g";
+			gpios = <&pio 38 GPIO_ACTIVE_LOW>;
+		};
+
+		5g_led1 {
+			label = "green:5g:led1";
+			gpios = <&pio 6 GPIO_ACTIVE_LOW>;
+		};
+
+		5g_led2 {
+			label = "green:5g:led2";
+			gpios = <&pio 7 GPIO_ACTIVE_LOW>;
+		};
+
+		5g_led3 {
+			label = "green:5g:led3";
+			gpios = <&pio 8 GPIO_ACTIVE_LOW>;
+		};
+
+		5g_led4 {
+			label = "green:5g:led4";
+			gpios = <&pio 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		power {
+			label = "green:power";
+			gpios = <&pio 39 GPIO_ACTIVE_LOW>;
+		};
+
+		wan {
+			label = "green:wan";
+			gpios = <&pio 31 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&eth {
+	status = "okay";
+	mediatek,gmac-id = <1>;
+	phy-mode = "gmii";
+	phy-handle = <&phy0>;
+
+	mdio {
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id03a2.9461";
+			reg = <0x0>;
+			phy-mode = "gmii";
+		};
+	};
+};
+
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins_default>;
+	max-frequency = <52000000>;
+	bus-width = <8>;
+	cap-mmc-hw-highspeed;
+	cap-mmc-hw-reset;
+	vmmc-supply = <&reg_3p3v>;
+	non-removable;
+	status = "okay";
+};
+
+&pio {
+	mmc0_pins_default: mmc0-pins-default {
+		mux {
+			function = "flash";
+			groups =  "emmc_45";
+		};
+		conf-cmd-dat {
+			pins = "SPI0_CLK", "SPI0_MOSI", "SPI0_MISO",
+				"SPI0_CS",  "SPI0_HOLD", "SPI0_WP",
+				"SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
+			input-enable;
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+		conf-clk {
+			pins = "SPI1_CS";
+			drive-strength = <MTK_DRIVE_6mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+		conf-rst {
+			pins = "GPIO_WPS";
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

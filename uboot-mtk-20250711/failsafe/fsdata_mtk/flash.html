@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+	<title>Flash Editor</title>
+	<link rel="stylesheet" href="/style.css">
+	<script src="/main.js"></script>
+</head>
+
+<body onload="flashInitOld()">
+	<div id="main">
+		<div id="banner">MediaTek U-Boot System Recovery Mode</div>
+		<h1>FLASH EDITOR</h1>
+		<p>Read and write raw flash ranges using <strong>hex</strong>.</p>
+		<div id="flash_info"></div>
+		<form id="flash_form" onsubmit="return false;">
+			<p>
+				Target:
+				<select id="flash_target"></select>
+			</p>
+			<p>
+				Start: <input id="flash_start" type="text" placeholder="0x0">
+			</p>
+			<p>
+				End (exclusive): <input id="flash_end" type="text" placeholder="0x1000">
+			</p>
+			<p>
+				<input class="button" type="button" value="Read" onclick="flashReadOld()">
+				<input class="button" type="button" value="Write" onclick="flashWriteOld()">
+				<input class="button button-danger" type="button" value="Erase" onclick="flashEraseOld()">
+				<input class="button" type="button" value="Format" onclick="flashFormatDataOld()">
+			</p>
+		</form>
+		<p>
+			Hex data:<br>
+			<textarea id="flash_data" rows="10" style="width:100%;" placeholder="00 11 22 33"></textarea>
+		</p>
+		<p>
+			Restore file: <input id="flash_backup" type="file" accept=".bin">
+			<input class="button" type="button" value="Restore" onclick="flashRestoreOld()">
+		</p>
+		<div id="flash_restore_info"></div>
+		<div id="flash_status"></div>
+	</div>
+</body>
+
+</html>

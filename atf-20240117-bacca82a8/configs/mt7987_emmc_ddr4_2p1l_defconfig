@@ -1,0 +1,4 @@
+_PLAT_MT7987=y
+_BOOT_DEVICE_EMMC=y
+# _DUAL_FIP is not set
+_I2P5G_PHY_2P1L=y
