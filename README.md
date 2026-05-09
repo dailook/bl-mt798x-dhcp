@@ -18,8 +18,6 @@ U-Boot 2025 新增更多功能：
 - 国际化（I18N）支持
 - 设备重启
 
-![Version-2025](document/pictures/uboot-2025.png)
-
 你可以根据需要配置功能。
 
 - [x] MTK_DHCPD
