@@ -363,8 +363,8 @@ static void sysinfo_handler(enum httpd_uri_handler_status status,
 		present = mmc && bd && bd->type != DEV_TYPE_UNKNOWN;
 
 		if (present) {
-			json_escape(esc_vendor, sizeof(esc_vendor), bd->vendor ? bd->vendor : "");
-			json_escape(esc_product, sizeof(esc_product), bd->product ? bd->product : "");
+			json_escape(esc_vendor, sizeof(esc_vendor), bd->vendor);
+			json_escape(esc_product, sizeof(esc_product), bd->product);
 			len += snprintf(buf + len, left - len,
 				"\"present\":true,\"vendor\":\"%s\",\"product\":\"%s\",\"blksz\":%lu,\"size\":%llu,",
 				esc_vendor, esc_product, (unsigned long)bd->blksz,
@@ -770,8 +770,6 @@ static void js_handler(enum httpd_uri_handler_status status,
 
 		if (uri && strstr(uri, "i18n.js"))
 			file = "i18n.js";
-		else if (uri && strstr(uri, "themeloader.js"))
-			file = "themeloader.js";
 
 		output_plain_file(response, file);
 		response->info.content_type = "text/javascript";
@@ -879,10 +877,6 @@ int start_web_failsafe(void)
 	httpd_register_uri_handler(inst, "/reboot-failsafe", &reboot_failsafe_handler, NULL);
 	httpd_register_uri_handler(inst, "/reboot.html", &html_handler, NULL);
 	httpd_register_uri_handler(inst, "/sysinfo", &sysinfo_handler, NULL);
-#ifdef CONFIG_WEBUI_FAILSAFE_UI_NEW
-	httpd_register_uri_handler(inst, "/favicon.svg", &picture_handler, NULL);
-	httpd_register_uri_handler(inst, "/themeloader.js", &js_handler, NULL);
-#endif
 #ifdef CONFIG_WEBUI_FAILSAFE_I18N
 	httpd_register_uri_handler(inst, "/i18n.js", &js_handler, NULL);
 #endif
@@ -905,10 +899,6 @@ int start_web_failsafe(void)
 	httpd_register_uri_handler(inst, "/env/unset", &env_unset_handler, NULL);
 	httpd_register_uri_handler(inst, "/env/reset", &env_reset_handler, NULL);
 	httpd_register_uri_handler(inst, "/env/restore", &env_restore_handler, NULL);
-#ifdef CONFIG_WEBUI_FAILSAFE_UI_NEW
-	httpd_register_uri_handler(inst, "/theme/get", &theme_get_handler, NULL);
-	httpd_register_uri_handler(inst, "/theme/set", &theme_set_handler, NULL);
-#endif
 #endif
 #ifdef CONFIG_WEBUI_FAILSAFE_SIMG
 	httpd_register_uri_handler(inst, "/simg.html", &html_handler, NULL);
