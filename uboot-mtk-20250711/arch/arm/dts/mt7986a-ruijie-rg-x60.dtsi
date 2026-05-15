@@ -27,24 +27,24 @@
 	mtd-layout {
 		layout@0 {
 			label = "default";
-			// mtd layout for immortalwrt 107M ubi firmware
+			// mtd layout for ruijie stock ubi or openwrt/immortalwrt
 			cmdline = "console=ttyS0,115200n8 earlycon=uart8250,mmio32,0x11002000";
 			mtdids = "nmbm0=nmbm0";
-			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),109568k(ubi)";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),64512k(ubi)";
 		};
 
 		layout@1 {
-			label = "expand";
-			// mtd layout for 113m ubi firmware
+			label = "ubi-107m";
+			// mtd layout for immortalwrt/openwrt 107m ubi firmware
 			mtdids = "nmbm0=nmbm0";
-			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),115712k(ubi)";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),107m(ubi)";
 		};
 
 		layout@2 {
-			label = "stock";
-			// mtd layout for stock layout firmware
+			label = "ubi-113m";
+			// mtd layout for immortalwrt/openwrt 113m ubi firmware
 			mtdids = "nmbm0=nmbm0";
-			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),64512k(ubi)";
+			mtdparts = "nmbm0:1024k(bl2),512k(u-boot-env),2048k(Factory),2048k(fip),512k(product_info),512k(kdump),113m(ubi)";
 		};
 	};
 
